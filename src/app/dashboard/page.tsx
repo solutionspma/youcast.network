@@ -72,34 +72,44 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 recentMedia.map((item) => (
-                <div key={item.title} className="px-6 py-4 flex items-center gap-4 hover:bg-surface-800/50 transition-colors">
-                  <div className="w-16 h-10 rounded-lg bg-surface-700 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-surface-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-white truncate">{item.title}</h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-surface-500">{item.type}</span>
-                      <span className="text-xs text-surface-600">&middot;</span>
-                      <span className="text-xs text-surface-500">{item.date}</span>
+                  <div key={item.title} className="px-6 py-4 flex items-center gap-4 hover:bg-surface-800/50 transition-colors">
+                    <div className="w-16 h-10 rounded-lg bg-surface-700 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-surface-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-white truncate">{item.title}</h3>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-surface-500">{item.type}</span>
+                        <span className="text-xs text-surface-600">&middot;</span>
+                        <span className="text-xs text-surface-500">{item.date}</span>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm text-white">{item.views}</div>
+                      <Badge
+                        variant={item.status === 'published' ? 'success' : 'warning'}
+                        size="sm"
+                      >
+                        {item.status}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                )    <div className="text-sm text-white">{item.views}</div>
-                    <Badge
-                      variant={item.status === 'published' ? 'success' : 'warning'}
-                      size="sm"
-                    >
-                      {item.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </Card>
-        </div>length === 0 ? (
+        </div>
+
+        {/* Activity Feed */}
+        <div>
+          <Card variant="default" padding="none">
+            <div className="px-6 py-4 border-b border-surface-700">
+              <h2 className="text-lg font-semibold text-white">Activity</h2>
+            </div>
+            <div className="divide-y divide-surface-700/50">
+              {activity.length === 0 ? (
                 <div className="px-6 py-12 text-center">
                   <svg className="w-12 h-12 text-surface-600 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -108,24 +118,16 @@ export default function DashboardPage() {
                   <p className="text-xs text-surface-500 mt-1">Your channel activity will appear here</p>
                 </div>
               ) : (
-                activity.
-
-        {/* Activity Feed */}
-        <div>
-          <Card variant="default" padding="none">
-            <div className="px-6 py-4 border-b border-surface-700">
-              <h2 className="text-lg font-semibold text-white">Activity</h2>
-            </div>
-            <div) className="divide-y divide-surface-700/50">
-              {activity.map((item, i) => (
-                <div key={i} className="px-6 py-3.5">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-medium text-brand-400">{item.action}</span>
-                    <span className="text-xs text-surface-600">{item.time}</span>
+                activity.map((item, i) => (
+                  <div key={i} className="px-6 py-3.5">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-medium text-brand-400">{item.action}</span>
+                      <span className="text-xs text-surface-600">{item.time}</span>
+                    </div>
+                    <p className="text-sm text-surface-300">{item.detail}</p>
                   </div>
-                  <p className="text-sm text-surface-300">{item.detail}</p>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </Card>
         </div>
