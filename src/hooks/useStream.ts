@@ -746,7 +746,7 @@ export function useStream(channelId?: string) {
         .insert({
           channel_id: channelId,
           title: `Live Stream - ${new Date().toLocaleString()}`,
-          status: 'draft' as StreamDBState, // Start as draft, update to live after publish succeeds
+          status: 'offline' as StreamDBState, // Start as offline, update to live after publish succeeds
           webrtc_room_id: `stream-${Date.now()}`,
         })
         .select()

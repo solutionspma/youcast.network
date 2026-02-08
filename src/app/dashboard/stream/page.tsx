@@ -42,6 +42,7 @@ export default function StreamStudioPage() {
   const [cameraResolution, setCameraResolution] = useState<'720p' | '1080p'>('1080p');
   const [cameraFrameRate, setCameraFrameRate] = useState<30 | 60>(30);
   
+  const isInitialMount = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Initialize Stream Hook with REAL device connections
@@ -121,6 +122,12 @@ export default function StreamStudioPage() {
   
   // Apply camera settings when they change (restart camera with new resolution/framerate)
   useEffect(() => {
+    // Skip on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    
     if (stream.cameraStream && stream.selectedCamera && (stream.status === 'preview' || stream.status === 'live')) {
       console.log('Camera settings changed, restarting camera with new settings');
       stream.startCamera(stream.selectedCamera, cameraResolution, cameraFrameRate);

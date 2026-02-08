@@ -14,10 +14,12 @@ export function assertNoExternalReset(source: string): boolean {
   return true;
 }
 
-export type StreamDBState = "draft" | "live" | "ended";
+// Stream database states (must match DB CHECK constraint)
+export type StreamDBState = "offline" | "preview" | "live" | "ended";
 
 export const STREAM_STATE_RULES = {
-  draft: "Preview allowed, not publishing",
+  offline: "Stream not started",
+  preview: "Preview mode, not publishing",
   live: "Publishing to LiveKit",
-  ended: "Teardown complete",
+  ended: "Stream ended, teardown complete",
 } as const;
