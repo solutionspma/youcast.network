@@ -583,7 +583,6 @@ export function useStream(channelId?: string) {
   const startPreview = useCallback(async () => {
     try {
       console.log('Starting preview...');
-      setStatus('preview');
       initAudioMixer();
       
       // Use bulletproof camera preview function
@@ -608,39 +607,42 @@ export function useStream(channelId?: string) {
       // Store video element for rendering
       videoElementsRef.current.set('camera-source', videoEl);
       
-      // Create default scene if none exist
-      let activeScene = scenes.find(s => s.id === activeSceneId);
-      if (!activeScene) {
-        console.log('Creating default scene');
-        const newScene = createScene('Main Scene', 'fullscreen');
-        activeScene = newScene;
-      }
+      // Create default scene if none exist and set camera source
+      const cameraSource: StreamSource = {
+        id: 'camera-source',
+        type: 'camera',
+        label: 'Camera',
+        enabled: true,
+        stream: stream,
+        volume: 1.0
+      };
       
-      // Add camera to scene
-      if (activeScene) {
-        const hasCameraSource = activeScene.sources.some(s => s.type === 'camera');
-        if (!hasCameraSource) {
-          console.log('Adding camera to scene');
-          addSourceToScene(activeScene.id, {
-            id: 'camera-source',
-            type: 'camera',
-            label: 'Camera',
-            enabled: true,
-            stream: stream,
-            volume: 1.0
-          });
+      if (scenes.length === 0) {
+        console.log('Creating default scene with camera');
+        const newScene: Scene = {
+          id: `scene-${Date.now()}`,
+          name: 'Main Scene',
+          sources: [cameraSource],
+          layout: 'fullscreen',
+          isActive: true
+        };
+        setScenes([newScene]);
+        setActiveSceneId(newScene.id);
+      } else {
+        // Add camera to existing active scene
+        const activeScene = scenes.find(s => s.id === activeSceneId);
+        if (activeScene) {
+          const hasCameraSource = activeScene.sources.some(s => s.type === 'camera');
+          if (!hasCameraSource) {
+            console.log('Adding camera to existing scene');
+            addSourceToScene(activeScene.id, cameraSource);
+          }
         }
       }
       
-      // Start canvas rendering ONLY after video is ready
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      
-      console.log('Starting render loop with verified video');
-      renderFrame();
-      
+      // Set status to preview - this will trigger the render loop via useEffect
       setStatus('preview');
+      console.log('Preview started - render loop will begin via effect');
       
     } catch (error) {
       console.error('Failed to start preview:', error);
@@ -653,9 +655,7 @@ export function useStream(channelId?: string) {
     activeSceneId,
     initAudioMixer, 
     addAudioSource,
-    createScene,
-    addSourceToScene,
-    renderFrame
+    addSourceToScene
   ]);
   
   const stopPreview = useCallback(() => {
@@ -944,6 +944,23 @@ export function useStream(channelId?: string) {
       }
     }
   }, [scenes.length, cameraStream, createScene, addSourceToScene]);
+  
+  // Start render loop when canvas is ready and we have scenes
+  useEffect(() => {
+    if (canvasRef.current && compositorRef.current && scenes.length > 0 && (status === 'preview' || status === 'live')) {
+      console.log('Starting render loop from effect');
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      renderFrame();
+    }
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [canvasRef.current, compositorRef.current, scenes.length, status, renderFrame]);
   
   // ============================================================================
   // RETURN API
