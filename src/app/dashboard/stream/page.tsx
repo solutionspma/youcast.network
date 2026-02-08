@@ -123,6 +123,32 @@ export default function StreamStudioPage() {
     }
   }, [cameraResolution, cameraFrameRate]);
   
+  // Auto-start preview when devices are available and stream is offline
+  useEffect(() => {
+    if (
+      stream.status === 'offline' && 
+      stream.cameras.length > 0 && 
+      stream.microphones.length > 0 &&
+      !stream.selectedCamera &&
+      canvasRef.current
+    ) {
+      // Auto-select first available devices
+      const firstCamera = stream.cameras[0];
+      const firstMic = stream.microphones[0];
+      
+      if (firstCamera && firstMic) {
+        console.log('Auto-starting preview with:', firstCamera.label, firstMic.label);
+        stream.setSelectedCamera(firstCamera.deviceId);
+        stream.setSelectedMicrophone(firstMic.deviceId);
+        
+        // Start preview after devices are selected
+        setTimeout(() => {
+          stream.startPreview();
+        }, 500);
+      }
+    }
+  }, [stream.cameras, stream.microphones, stream.status, stream.selectedCamera]);
+  
   const handleSendMessage = useCallback((message: string) => {
     setChatMessages(prev => [...prev, {
       id: `msg-${Date.now()}`,
