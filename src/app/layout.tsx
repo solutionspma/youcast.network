@@ -30,6 +30,11 @@ export const metadata: Metadata = {
     description: 'Stream, publish, and grow on the creator-owned media platform.',
   },
   robots: { index: true, follow: true },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    viewportFit: 'cover',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

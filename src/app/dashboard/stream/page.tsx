@@ -162,15 +162,15 @@ export default function StreamStudioPage() {
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col -m-6 -mt-0">
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-surface-900 border-b border-surface-700/50">
-        <div className="flex items-center gap-3">
-          <h1 className="text-sm font-bold text-white">Stream Studio</h1>
+      <div className="flex items-center justify-between px-2 md:px-4 py-2.5 bg-surface-900 border-b border-surface-700/50">
+        <div className="flex items-center gap-2 md:gap-3">
+          <h1 className="text-xs md:text-sm font-bold text-white">Stream Studio</h1>
           {stream.status === 'live' && <Badge variant="live" size="sm">LIVE</Badge>}
           {stream.status === 'preview' && <Badge variant="warning" size="sm">PREVIEW</Badge>}
           {stream.status === 'offline' && <Badge variant="default" size="sm">OFFLINE</Badge>}
           {stream.status === 'error' && <Badge variant="danger" size="sm">ERROR</Badge>}
         </div>
-        <div className="flex items-center gap-4 text-xs text-surface-400">
+        <div className="flex items-center gap-2 md:gap-4 text-xs text-surface-400">
           {stream.status === 'live' && (
             <>
               <span className="flex items-center gap-1.5">
@@ -180,8 +180,8 @@ export default function StreamStudioPage() {
                 </svg>
                 {stream.viewerCount}
               </span>
-              <span className="font-mono">{formatDuration(stream.duration)}</span>
-              <span className={`flex items-center gap-1.5 ${
+              <span className="font-mono hidden sm:inline">{formatDuration(stream.duration)}</span>
+              <span className={`hidden md:flex items-center gap-1.5 ${
                 stream.streamHealth.networkQuality === 'excellent' ? 'text-green-500' :
                 stream.streamHealth.networkQuality === 'good' ? 'text-yellow-500' :
                 'text-red-500'
@@ -197,9 +197,9 @@ export default function StreamStudioPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Sidebar — Devices / Scenes / Audio */}
-        <div className="w-72 bg-surface-900/80 border-r border-surface-700/50 flex flex-col">
+        <div className="w-full md:w-72 bg-surface-900/80 border-r border-surface-700/50 flex flex-col md:max-h-none max-h-48">
           {/* Panel Tabs */}
           <div className="flex border-b border-surface-700/50">
             {(['devices', 'scenes', 'audio'] as LeftPanel[]).map((tab) => (
@@ -437,11 +437,11 @@ export default function StreamStudioPage() {
         </div>
 
         {/* Center — Preview + Controls */}
-        <div className="flex-1 flex flex-col bg-surface-950 p-4 overflow-y-auto">
+        <div className="flex-1 flex flex-col bg-surface-950 p-2 md:p-4 overflow-y-auto">
           {/* Canvas Preview */}
           <div className="flex-1 flex items-center justify-center">
             <div className="w-full max-w-5xl">
-              <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+              <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
                 <canvas
                   ref={canvasRef}
                   className="w-full h-full"
@@ -535,7 +535,7 @@ export default function StreamStudioPage() {
         </div>
 
         {/* Right Sidebar — Chat / Stats */}
-        <div className="w-80 bg-surface-900/80 border-l border-surface-700/50 flex flex-col">
+        <div className="w-full md:w-80 bg-surface-900/80 border-l border-surface-700/50 flex flex-col md:max-h-none max-h-64 hidden md:flex">
           {/* Panel Tabs */}
           <div className="flex border-b border-surface-700/50">
             {(['chat', 'stats'] as RightPanel[]).map((tab) => (
