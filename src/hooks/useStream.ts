@@ -901,9 +901,10 @@ export function useStream(channelId?: string) {
     
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
-      stopStream();
+      // DO NOT call stopStream() here - it causes race conditions
+      // when dependencies change. Stream should only stop on explicit user action.
     };
-  }, [enumerateDevices, stopStream]);
+  }, [enumerateDevices]);
   
   // Initialize default scene
   useEffect(() => {

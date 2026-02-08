@@ -123,31 +123,13 @@ export default function StreamStudioPage() {
     }
   }, [cameraResolution, cameraFrameRate]);
   
-  // Auto-start preview when devices are available and stream is offline
+  // Debug: Log state changes to track race conditions
   useEffect(() => {
-    if (
-      stream.status === 'offline' && 
-      stream.cameras.length > 0 && 
-      stream.microphones.length > 0 &&
-      !stream.selectedCamera &&
-      canvasRef.current
-    ) {
-      // Auto-select first available devices
-      const firstCamera = stream.cameras[0];
-      const firstMic = stream.microphones[0];
-      
-      if (firstCamera && firstMic) {
-        console.log('Auto-starting preview with:', firstCamera.label, firstMic.label);
-        stream.setSelectedCamera(firstCamera.deviceId);
-        stream.setSelectedMicrophone(firstMic.deviceId);
-        
-        // Start preview after devices are selected
-        setTimeout(() => {
-          stream.startPreview();
-        }, 500);
-      }
-    }
-  }, [stream.cameras, stream.microphones, stream.status, stream.selectedCamera]);
+    console.log('STREAM STATE:', stream.status);
+  }, [stream.status]);
+  
+  // DO NOT auto-start or auto-reset preview
+  // Preview should only start/stop on explicit user action
   
   const handleSendMessage = useCallback((message: string) => {
     setChatMessages(prev => [...prev, {
