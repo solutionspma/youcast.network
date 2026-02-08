@@ -173,8 +173,8 @@ export default function StreamStudioPage() {
   // DO NOT auto-start or auto-reset preview
   // Preview should only start/stop on explicit user action
   // State changes must come from user interaction ONLY
-  
-  const handleSendMessage = useCallback((message: string) => {
+
+  const handleSendMessage = (message: string) => {
     setChatMessages(prev => [...prev, {
       id: `msg-${Date.now()}`,
       username: 'You (Host)',
@@ -182,10 +182,9 @@ export default function StreamStudioPage() {
       timestamp: 'now',
       type: 'moderator' as const,
     }]);
-  }, []);
-  
-  return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col -m-6 -mt-0">
+  };
+
+  return (<div className="h-[calc(100vh-4rem)] flex flex-col -m-6 -mt-0">
       {/* Top Bar */}
       <div className="flex items-center justify-between px-2 md:px-4 py-2.5 bg-surface-900 border-b border-surface-700/50">
         <div className="flex items-center gap-2 md:gap-3">
@@ -482,7 +481,7 @@ export default function StreamStudioPage() {
           </div>
         </div>
 
-        {/* Center — Preview + Controls */
+        {/* Center — Preview + Controls */}
         <div className="flex-1 flex flex-col bg-surface-950 p-2 md:p-4 overflow-y-auto">
           {/* Canvas Preview */}
           <div className="flex-1 flex items-center justify-center">
