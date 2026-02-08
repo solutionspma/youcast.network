@@ -155,19 +155,26 @@ export function useStream(channelId?: string) {
   // CAMERA SETUP - Real getUserMedia
   // ============================================================================
   
-  const startCamera = useCallback(async (deviceId?: string) => {
+  const startCamera = useCallback(async (
+    deviceId?: string, 
+    resolution: '720p' | '1080p' = '1080p',
+    frameRate: 30 | 60 = 30
+  ) => {
     try {
       // Stop existing stream
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
       }
       
+      const dimensions = resolution === '720p' 
+        ? { width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { width: { ideal: 1920 }, height: { ideal: 1080 } };
+      
       const constraints: MediaStreamConstraints = {
         video: {
           deviceId: deviceId ? { exact: deviceId } : undefined,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30 }
+          ...dimensions,
+          frameRate: { ideal: frameRate }
         },
         audio: false
       };
@@ -540,27 +547,46 @@ export function useStream(channelId?: string) {
       setStatus('preview');
       initAudioMixer();
       
+      let camStream = cameraStream;
+      let micStream = audioStream;
+      
       // Start camera and mic if not already started
-      if (!cameraStream && selectedCamera) {
+      if (!camStream && selectedCamera) {
         console.log('Starting camera:', selectedCamera);
-        const cam = await startCamera(selectedCamera);
-        if (cam) {
-          addAudioSource('camera-audio', cam, 0); // Camera audio usually not needed
+        camStream = await startCamera(selectedCamera, '1080p', 30);
+        if (camStream) {
+          addAudioSource('camera-audio', camStream, 0); // Camera audio usually not needed
         }
       }
       
-      if (!audioStream && selectedMicrophone) {
+      if (!micStream && selectedMicrophone) {
         console.log('Starting microphone:', selectedMicrophone);
-        const audio = await startMicrophone(selectedMicrophone);
-        if (audio) {
-          addAudioSource('microphone', audio, 1.0);
+        micStream = await startMicrophone(selectedMicrophone);
+        if (micStream) {
+          addAudioSource('microphone', micStream, 1.0);
         }
       }
       
-      // Create default scene if none exist
-      if (scenes.length === 0) {
+      // Create default scene if none exist and add sources
+      let activeScene = scenes.find(s => s.id === activeSceneId);
+      if (!activeScene) {
         console.log('Creating default scene');
-        createScene('Main Scene', 'fullscreen');
+        const newScene = createScene('Main Scene', 'fullscreen');
+        activeScene = newScene;
+      }
+      
+      // Add camera and mic to active scene if not already added
+      if (activeScene && camStream) {
+        const hasCameraSource = activeScene.sources.some(s => s.type === 'camera');
+        if (!hasCameraSource) {
+          console.log('Adding camera to scene');
+          addSourceToScene(activeScene.id, {
+            id: 'camera-source',
+            type: 'camera',
+            enabled: true,
+            stream: camStream
+          });
+        }
       }
       
       // Start canvas rendering
@@ -584,12 +610,15 @@ export function useStream(channelId?: string) {
     selectedCamera, 
     selectedMicrophone, 
     cameraStream, 
-    audioStream, 
+    audioStream,
+    scenes,
+    activeSceneId,
     startCamera, 
     startMicrophone, 
     initAudioMixer, 
     addAudioSource,
     createScene,
+    addSourceToScene,
     renderFrame
   ]);
   

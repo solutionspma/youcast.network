@@ -36,6 +36,8 @@ export default function StreamStudioPage() {
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('devices');
   const [rightPanel, setRightPanel] = useState<RightPanel>('chat');
   const [chatMessages, setChatMessages] = useState(mockChatMessages);
+  const [cameraResolution, setCameraResolution] = useState<'720p' | '1080p'>('1080p');
+  const [cameraFrameRate, setCameraFrameRate] = useState<30 | 60>(30);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -100,12 +102,26 @@ export default function StreamStudioPage() {
   const handleDeviceChange = (type: 'camera' | 'microphone', deviceId: string) => {
     if (type === 'camera') {
       stream.setSelectedCamera(deviceId);
-      stream.startCamera(deviceId);
+      stream.startCamera(deviceId, cameraResolution, cameraFrameRate);
     } else {
       stream.setSelectedMicrophone(deviceId);
       stream.startMicrophone(deviceId);
     }
   };
+  
+  const handleCameraSettingsChange = () => {
+    // Restart camera with new settings if camera is active
+    if (stream.selectedCamera) {
+      stream.startCamera(stream.selectedCamera, cameraResolution, cameraFrameRate);
+    }
+  };
+  
+  // Apply camera settings when they change
+  useEffect(() => {
+    if (stream.cameraStream && stream.selectedCamera) {
+      handleCameraSettingsChange();
+    }
+  }, [cameraResolution, cameraFrameRate]);
   
   const handleSendMessage = useCallback((message: string) => {
     setChatMessages(prev => [...prev, {
@@ -197,6 +213,37 @@ export default function StreamStudioPage() {
                     <div className="mt-2 flex items-center gap-2 text-xs text-green-500">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                       Camera Active
+                    </div>
+                  )}
+                  
+                  {/* Camera Settings */}
+                  {stream.selectedCamera && (
+                    <div className="mt-3 space-y-2">
+                      <div>
+                        <label className="block text-xs text-surface-400 mb-1">Resolution</label>
+                        <select
+                          value={cameraResolution}
+                          onChange={(e) => setCameraResolution(e.target.value as '720p' | '1080p')}
+                          className="w-full px-2 py-1.5 bg-surface-900 border border-surface-700 rounded text-xs text-white"
+                        >
+                          <option value="720p">720p (1280x720)</option>
+                          <option value="1080p">1080p (1920x1080)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-surface-400 mb-1">Frame Rate</label>
+                        <select
+                          value={cameraFrameRate}
+                          onChange={(e) => setCameraFrameRate(Number(e.target.value) as 30 | 60)}
+                          className="w-full px-2 py-1.5 bg-surface-900 border border-surface-700 rounded text-xs text-white"
+                        >
+                          <option value="30">30 FPS</option>
+                          <option value="60">60 FPS</option>
+                        </select>
+                      </div>
+                      <p className="text-xs text-surface-500">
+                        {cameraResolution} @ {cameraFrameRate}fps
+                      </p>
                     </div>
                   )}
                 </div>
