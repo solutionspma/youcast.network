@@ -129,7 +129,7 @@ export default function MonetizationPage() {
     };
     
     loadData();
-  }, []);
+  }, [supabase]);
   
   // ============================================================================
   // FORMAT CURRENCY

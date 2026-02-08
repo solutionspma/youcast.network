@@ -280,7 +280,7 @@ export default function StreamStudioPage() {
                 
                 {stream.scenes.length === 0 && (
                   <div className="text-center py-8 text-sm text-surface-500">
-                    No scenes yet. Click "+ New" to create one.
+                    No scenes yet. Click &quot;+ New&quot; to create one.
                   </div>
                 )}
               </div>
@@ -364,7 +364,7 @@ export default function StreamStudioPage() {
                     <div className="text-center">
                       <div className="text-4xl mb-2">📹</div>
                       <p className="text-white font-medium">Stream Offline</p>
-                      <p className="text-sm text-surface-400 mt-1">Click "Start Preview" to begin</p>
+                      <p className="text-sm text-surface-400 mt-1">Click &quot;Start Preview&quot; to begin</p>
                     </div>
                   </div>
                 )}
