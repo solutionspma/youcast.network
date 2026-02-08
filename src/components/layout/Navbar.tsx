@@ -21,8 +21,12 @@ export default function Navbar() {
       <nav className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center group">
+          <Link href="/" className="flex items-center gap-3 group">
             <img src="/youCastlogoorange.png" alt="YouCast" className="h-10 w-auto" />
+            <span className="text-lg font-display font-bold tracking-tight">
+              <span className="text-white">YOUR</span>
+              <span className="text-brand-400"> NETWORK</span>
+            </span>
           </Link>
 
           {/* Desktop Nav — minimal */}

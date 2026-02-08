@@ -4,12 +4,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,10 +20,17 @@ export default function LoginPage() {
     setError('');
 
     try {
-      // Supabase auth will be wired here
-      // const { signIn } = useAuth();
-      // await signIn(email, password);
-      window.location.href = '/dashboard';
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) throw signInError;
+
+      // Redirect to dashboard on successful login
+      router.push('/dashboard');
+      router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -35,8 +45,12 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-grid" />
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 to-surface-950" />
         <div className="relative flex flex-col justify-center px-16">
-          <Link href="/" className="flex items-center mb-12">
+          <Link href="/" className="flex items-center gap-4 mb-12">
             <img src="/youCastlogoorange.png" alt="YouCast" className="h-16 w-auto" />
+            <span className="text-2xl font-display font-bold tracking-tight">
+              <span className="text-white">YOUR</span>
+              <span className="text-brand-400"> NETWORK</span>
+            </span>
           </Link>
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             Welcome back to your creative studio
@@ -51,8 +65,12 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <Link href="/" className="flex items-center mb-8 lg:hidden">
+          <Link href="/" className="flex items-center gap-3 mb-8 lg:hidden">
             <img src="/youCastlogoorange.png" alt="YouCast" className="h-12 w-auto" />
+            <span className="text-xl font-display font-bold tracking-tight">
+              <span className="text-white">YOUR</span>
+              <span className="text-brand-400"> NETWORK</span>
+            </span>
           </Link>
 
           <h2 className="text-2xl font-bold text-white mb-2">Sign in to Youcast</h2>

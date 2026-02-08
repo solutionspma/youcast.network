@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { createClient } from '@/lib/supabase/client';
 
 export default function SignupPage() {
   const [displayName, setDisplayName] = useState('');
@@ -11,17 +12,36 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccess(false);
 
     try {
-      // Supabase auth will be wired here
-      // const { signUp } = useAuth();
-      // await signUp(email, password, displayName);
-      window.location.href = '/dashboard';
+      const supabase = createClient();
+      
+      // Check if this is the master admin email
+      const isMasterAdmin = email === 'solutions@pitchmarketing.agency';
+      
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { 
+            display_name: displayName,
+            role: isMasterAdmin ? 'admin' : 'creator'
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      // Show success message
+      setSuccess(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -36,8 +56,12 @@ export default function SignupPage() {
         <div className="absolute inset-0 bg-grid" />
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 to-surface-950" />
         <div className="relative flex flex-col justify-center px-16">
-          <Link href="/" className="flex items-center mb-12">
+          <Link href="/" className="flex items-center gap-4 mb-12">
             <img src="/youCastlogoorange.png" alt="YouCast" className="h-16 w-auto" />
+            <span className="text-2xl font-display font-bold tracking-tight">
+              <span className="text-white">YOUR</span>
+              <span className="text-brand-400"> NETWORK</span>
+            </span>
           </Link>
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             Start building your media empire today
@@ -62,8 +86,12 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <Link href="/" className="flex items-center mb-8 lg:hidden">
+          <Link href="/" className="flex items-center gap-3 mb-8 lg:hidden">
             <img src="/youCastlogoorange.png" alt="YouCast" className="h-12 w-auto" />
+            <span className="text-xl font-display font-bold tracking-tight">
+              <span className="text-white">YOUR</span>
+              <span className="text-brand-400"> NETWORK</span>
+            </span>
           </Link>
 
           <h2 className="text-2xl font-bold text-white mb-2">Create your account</h2>
@@ -73,6 +101,23 @@ export default function SignupPage() {
               Sign in
             </Link>
           </p>
+
+          {success && (
+            <div className="mb-6 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h3 className="text-emerald-400 font-semibold mb-1">Check your email!</h3>
+                  <p className="text-sm text-emerald-300/80">
+                    We&apos;ve sent a confirmation link to <strong>{email}</strong>. 
+                    Click the link in the email to verify your account and get started.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">

@@ -67,6 +67,16 @@ const mainLinks: SidebarLink[] = [
       </svg>
     ),
   },
+  {
+    href: '/dashboard/admin',
+    label: 'Admin Panel',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    ),
+    badge: 'Admin',
+  },
 ];
 
 const bottomLinks: SidebarLink[] = [
@@ -126,8 +136,12 @@ export default function DashboardSidebar() {
     <aside className="fixed left-0 top-0 bottom-0 w-64 bg-surface-900 border-r border-surface-800 flex flex-col z-40">
       {/* Logo */}
       <div className="h-16 px-5 flex items-center border-b border-surface-800">
-        <Link href="/" className="flex items-center">
+        <Link href="/" className="flex items-center gap-2.5">
           <img src="/youCastlogoorange.png" alt="YouCast" className="h-9 w-auto" />
+          <span className="text-base font-display font-bold tracking-tight">
+            <span className="text-white">YOUR</span>
+            <span className="text-brand-400"> NETWORK</span>
+          </span>
         </Link>
       </div>
 
