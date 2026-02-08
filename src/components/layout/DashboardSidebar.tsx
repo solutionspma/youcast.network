@@ -126,10 +126,8 @@ export default function DashboardSidebar() {
     <aside className="fixed left-0 top-0 bottom-0 w-64 bg-surface-900 border-r border-surface-800 flex flex-col z-40">
       {/* Logo */}
       <div className="h-16 px-5 flex items-center border-b border-surface-800">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="text-lg font-display font-bold tracking-tight">
-            <span className="text-white">YOU</span><span className="text-brand-400">CAST</span>
-          </span>
+        <Link href="/" className="flex items-center">
+          <img src="/youCastlogoorange.png" alt="YouCast" className="h-9 w-auto" />
         </Link>
       </div>
 

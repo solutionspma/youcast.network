@@ -20,11 +20,9 @@ export default function Navbar() {
       <div className="absolute inset-0 bg-surface-950/70 backdrop-blur-2xl border-b border-surface-800/40" />
       <nav className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo — typographic treatment */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-xl font-display font-bold tracking-tight">
-              <span className="text-white">YOU</span><span className="text-brand-400">CAST</span>
-            </span>
+          {/* Logo */}
+          <Link href="/" className="flex items-center group">
+            <img src="/youCastlogoorange.png" alt="YouCast" className="h-10 w-auto" />
           </Link>
 
           {/* Desktop Nav — minimal */}

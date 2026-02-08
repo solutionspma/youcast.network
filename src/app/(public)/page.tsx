@@ -16,6 +16,9 @@ function Hero() {
         <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           {/* Left: Content */}
           <div className="lg:col-span-7">
+            {/* Hero Logo — big and bold */}
+            <img src="/youCastlogoorange.png" alt="YouCast" className="h-24 sm:h-32 lg:h-40 w-auto mb-10" />
+
             <div className="flex items-center gap-3 mb-8">
               <div className="marker" />
               <span className="text-sm font-medium text-surface-400 tracking-wide uppercase">Now in Open Beta</span>

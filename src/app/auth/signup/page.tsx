@@ -36,10 +36,8 @@ export default function SignupPage() {
         <div className="absolute inset-0 bg-grid" />
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 to-surface-950" />
         <div className="relative flex flex-col justify-center px-16">
-          <Link href="/" className="flex items-center gap-2.5 mb-12">
-            <span className="text-2xl font-display font-bold tracking-tight">
-              <span className="text-white">YOU</span><span className="text-brand-400">CAST</span>
-            </span>
+          <Link href="/" className="flex items-center mb-12">
+            <img src="/youCastlogoorange.png" alt="YouCast" className="h-16 w-auto" />
           </Link>
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             Start building your media empire today
@@ -64,10 +62,8 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <Link href="/" className="flex items-center gap-2.5 mb-8 lg:hidden">
-            <span className="text-xl font-display font-bold tracking-tight">
-              <span className="text-white">YOU</span><span className="text-brand-400">CAST</span>
-            </span>
+          <Link href="/" className="flex items-center mb-8 lg:hidden">
+            <img src="/youCastlogoorange.png" alt="YouCast" className="h-12 w-auto" />
           </Link>
 
           <h2 className="text-2xl font-bold text-white mb-2">Create your account</h2>
