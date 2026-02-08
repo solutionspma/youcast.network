@@ -5,28 +5,19 @@ import Button from '@/components/ui/Button';
 
 export const metadata: Metadata = { title: 'Dashboard' };
 
+// NO MOCK DATA - All stats should come from real analytics
 const stats = [
-  { label: 'Total Views', value: '248.5K', change: '+12.3%', up: true },
-  { label: 'Watch Time', value: '1,842 hrs', change: '+8.7%', up: true },
-  { label: 'Subscribers', value: '12,490', change: '+245', up: true },
-  { label: 'Revenue', value: '$4,280', change: '+18.2%', up: true },
+  { label: 'Total Views', value: '0', change: '—', up: false },
+  { label: 'Watch Time', value: '0 hrs', change: '—', up: false },
+  { label: 'Subscribers', value: '0', change: '—', up: false },
+  { label: 'Revenue', value: '$0', change: '—', up: false },
 ];
 
-const recentMedia = [
-  { title: 'Sunday Morning Service — Week 42', type: 'Live Stream', views: '8.4K', status: 'published', date: '2 hours ago' },
-  { title: 'Behind the Scenes: Studio Tour 2026', type: 'Video', views: '3.2K', status: 'published', date: '1 day ago' },
-  { title: 'Creator Tips: Multi-Camera Setups', type: 'Video', views: '12.1K', status: 'published', date: '3 days ago' },
-  { title: 'Midweek Devotional', type: 'Audio', views: '1.8K', status: 'published', date: '4 days ago' },
-  { title: 'Upcoming: Easter Special', type: 'Live Stream', views: '—', status: 'scheduled', date: 'Mar 15, 2026' },
-];
+// NO MOCK DATA - Real media from Supabase only
+const recentMedia: any[] = [];
 
-const activity = [
-  { action: 'New subscriber', detail: 'Sarah M. subscribed to your channel', time: '5 min ago' },
-  { action: 'Stream ended', detail: 'Sunday Morning Service — 2h 14m, 8.4K viewers', time: '2 hours ago' },
-  { action: 'Comment', detail: '"Amazing sermon! Thank you for this." — JohnD', time: '3 hours ago' },
-  { action: 'Milestone', detail: 'You reached 12,000 subscribers!', time: '1 day ago' },
-  { action: 'Upload complete', detail: 'Behind the Scenes: Studio Tour 2026 is ready', time: '1 day ago' },
-];
+// NO MOCK DATA - Real activity from Supabase only
+const activity: any[] = [];
 
 export default function DashboardPage() {
   return (
@@ -71,7 +62,16 @@ export default function DashboardPage() {
               <a href="/dashboard/media" className="text-sm text-brand-400 hover:text-brand-300">View All</a>
             </div>
             <div className="divide-y divide-surface-700/50">
-              {recentMedia.map((item) => (
+              {recentMedia.length === 0 ? (
+                <div className="px-6 py-12 text-center">
+                  <svg className="w-12 h-12 text-surface-600 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <p className="text-sm text-surface-400">No media uploaded yet</p>
+                  <p className="text-xs text-surface-500 mt-1">Start by going live or uploading content</p>
+                </div>
+              ) : (
+                recentMedia.map((item) => (
                 <div key={item.title} className="px-6 py-4 flex items-center gap-4 hover:bg-surface-800/50 transition-colors">
                   <div className="w-16 h-10 rounded-lg bg-surface-700 flex items-center justify-center flex-shrink-0">
                     <svg className="w-5 h-5 text-surface-500" viewBox="0 0 24 24" fill="currentColor">
@@ -87,7 +87,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-sm text-white">{item.views}</div>
+                )    <div className="text-sm text-white">{item.views}</div>
                     <Badge
                       variant={item.status === 'published' ? 'success' : 'warning'}
                       size="sm"
@@ -99,7 +99,16 @@ export default function DashboardPage() {
               ))}
             </div>
           </Card>
-        </div>
+        </div>length === 0 ? (
+                <div className="px-6 py-12 text-center">
+                  <svg className="w-12 h-12 text-surface-600 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-surface-400">No recent activity</p>
+                  <p className="text-xs text-surface-500 mt-1">Your channel activity will appear here</p>
+                </div>
+              ) : (
+                activity.
 
         {/* Activity Feed */}
         <div>
@@ -107,7 +116,7 @@ export default function DashboardPage() {
             <div className="px-6 py-4 border-b border-surface-700">
               <h2 className="text-lg font-semibold text-white">Activity</h2>
             </div>
-            <div className="divide-y divide-surface-700/50">
+            <div) className="divide-y divide-surface-700/50">
               {activity.map((item, i) => (
                 <div key={i} className="px-6 py-3.5">
                   <div className="flex items-center gap-2 mb-0.5">

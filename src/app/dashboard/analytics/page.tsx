@@ -4,36 +4,19 @@ import Badge from '@/components/ui/Badge';
 
 export const metadata: Metadata = { title: 'Analytics' };
 
+// NO MOCK DATA - Real analytics only
 const overviewStats = [
-  { label: 'Views (30d)', value: '248.5K', change: '+12.3%', up: true },
-  { label: 'Watch Time (30d)', value: '1,842 hrs', change: '+8.7%', up: true },
-  { label: 'Avg. View Duration', value: '6m 32s', change: '+2.1%', up: true },
-  { label: 'Engagement Rate', value: '14.8%', change: '-0.3%', up: false },
+  { label: 'Views (30d)', value: '0', change: '—', up: false },
+  { label: 'Watch Time (30d)', value: '0 hrs', change: '—', up: false },
+  { label: 'Avg. View Duration', value: '0s', change: '—', up: false },
+  { label: 'Engagement Rate', value: '0%', change: '—', up: false },
 ];
 
-const topContent = [
-  { title: 'Creator Tips: Multi-Camera Setups', views: '12.1K', watchTime: '4,842 hrs', engagement: '18.2%' },
-  { title: 'Sunday Morning Service — Week 42', views: '8.4K', watchTime: '2,340 hrs', engagement: '15.6%' },
-  { title: 'Worship Night Highlights', views: '5.6K', watchTime: '1,120 hrs', engagement: '22.1%' },
-  { title: 'Behind the Scenes: Studio Tour 2026', views: '3.2K', watchTime: '680 hrs', engagement: '19.8%' },
-  { title: 'Midweek Devotional — Episode 128', views: '1.8K', watchTime: '960 hrs', engagement: '12.4%' },
-];
+const topContent: any[] = [];
 
-const demographics = [
-  { label: '18-24', pct: 22 },
-  { label: '25-34', pct: 38 },
-  { label: '35-44', pct: 24 },
-  { label: '45-54', pct: 11 },
-  { label: '55+', pct: 5 },
-];
+const demographics: any[] = [];
 
-const trafficSources = [
-  { source: 'Direct / Bookmarks', pct: 42 },
-  { source: 'Youcast Browse', pct: 28 },
-  { source: 'External (Social Media)', pct: 18 },
-  { source: 'Search', pct: 8 },
-  { source: 'Embeds', pct: 4 },
-];
+const trafficSources: any[] = [];
 
 export default function AnalyticsPage() {
   return (

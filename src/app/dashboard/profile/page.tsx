@@ -37,7 +37,7 @@ export default function ProfilePage() {
               <Badge variant="success" size="sm" dot>Verified</Badge>
             </div>
             <p className="text-sm text-surface-400 mb-1">@{channelSlug}</p>
-            <p className="text-sm text-surface-400">12,490 subscribers &middot; 248.5K total views</p>
+            <p className="text-sm text-surface-400">0 subscribers &middot; 0 total views</p>
           </div>
           <Button variant="outline" size="sm">View Public Channel</Button>
         </div>

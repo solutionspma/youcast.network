@@ -5,28 +5,17 @@ import Button from '@/components/ui/Button';
 
 export const metadata: Metadata = { title: 'Audience' };
 
+// NO MOCK DATA - Real audience data only
 const audienceStats = [
-  { label: 'Total Subscribers', value: '12,490', change: '+245 this month' },
-  { label: 'Active Viewers (7d)', value: '8,320', change: '66.6% of subscribers' },
-  { label: 'New Subscribers (30d)', value: '1,240', change: '+18% vs last month' },
-  { label: 'Churn Rate', value: '2.1%', change: '-0.3% vs last month' },
+  { label: 'Total Subscribers', value: '0', change: '—' },
+  { label: 'Active Viewers (7d)', value: '0', change: '—' },
+  { label: 'New Subscribers (30d)', value: '0', change: '—' },
+  { label: 'Churn Rate', value: '0%', change: '—' },
 ];
 
-const topViewers = [
-  { name: 'Sarah M.', joined: 'Oct 2024', watchTime: '342 hrs', tier: 'Premium', lastActive: '2 hours ago' },
-  { name: 'JohnD', joined: 'Jan 2025', watchTime: '285 hrs', tier: 'VIP', lastActive: '1 hour ago' },
-  { name: 'Mike R.', joined: 'Mar 2025', watchTime: '210 hrs', tier: 'Supporter', lastActive: '4 hours ago' },
-  { name: 'Lisa K.', joined: 'Jul 2025', watchTime: '180 hrs', tier: 'Premium', lastActive: '1 day ago' },
-  { name: 'Chris B.', joined: 'Sep 2025', watchTime: '156 hrs', tier: 'Free', lastActive: '3 hours ago' },
-  { name: 'Ann W.', joined: 'Nov 2024', watchTime: '142 hrs', tier: 'Supporter', lastActive: '6 hours ago' },
-];
+const topViewers: any[] = [];
 
-const segments = [
-  { name: 'Power Viewers', count: 1240, desc: 'Watched 10+ hours in the last 30 days' },
-  { name: 'New Subscribers', count: 842, desc: 'Joined in the last 30 days' },
-  { name: 'At-Risk', count: 320, desc: 'No activity in 14+ days' },
-  { name: 'Paid Subscribers', count: 842, desc: 'Active on any paid tier' },
-];
+const segments: any[] = [];
 
 export default function AudiencePage() {
   return (
