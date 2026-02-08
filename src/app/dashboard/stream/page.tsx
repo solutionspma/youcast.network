@@ -119,17 +119,11 @@ export default function StreamStudioPage() {
     }
   };
   
-  const handleCameraSettingsChange = () => {
-    // Restart camera with new settings if camera is active
-    if (stream.selectedCamera) {
-      stream.startCamera(stream.selectedCamera, cameraResolution, cameraFrameRate);
-    }
-  };
-  
-  // Apply camera settings when they change
+  // Apply camera settings when they change (restart camera with new resolution/framerate)
   useEffect(() => {
-    if (stream.cameraStream && stream.selectedCamera) {
-      handleCameraSettingsChange();
+    if (stream.cameraStream && stream.selectedCamera && (stream.status === 'preview' || stream.status === 'live')) {
+      console.log('Camera settings changed, restarting camera with new settings');
+      stream.startCamera(stream.selectedCamera, cameraResolution, cameraFrameRate);
     }
   }, [cameraResolution, cameraFrameRate]);
   

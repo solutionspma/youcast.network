@@ -945,6 +945,42 @@ export function useStream(channelId?: string) {
     }
   }, [scenes.length, cameraStream, createScene, addSourceToScene]);
   
+  // Update camera source in scenes when cameraStream changes
+  useEffect(() => {
+    if (cameraStream && scenes.length > 0) {
+      console.log('Camera stream changed, updating scene sources and video element');
+      
+      // Update all camera sources in all scenes with new stream
+      setScenes(prev => prev.map(scene => ({
+        ...scene,
+        sources: scene.sources.map(source =>
+          source.type === 'camera'
+            ? { ...source, stream: cameraStream }
+            : source
+        )
+      })));
+      
+      // Create or update video element with new stream
+      const cameraSourceId = 'camera-source';
+      let video = videoElementsRef.current.get(cameraSourceId);
+      
+      if (!video) {
+        // Create new video element if it doesn't exist
+        video = document.createElement('video');
+        video.autoplay = true;
+        video.muted = true;
+        video.playsInline = true;
+        videoElementsRef.current.set(cameraSourceId, video);
+      }
+      
+      // Update video element with new stream
+      video.srcObject = cameraStream;
+      video.play().catch(err => console.warn('Video play failed:', err));
+      
+      console.log('Video element updated with new stream');
+    }
+  }, [cameraStream]);
+  
   // Start render loop when canvas is ready and we have scenes
   useEffect(() => {
     if (canvasRef.current && compositorRef.current && scenes.length > 0 && (status === 'preview' || status === 'live')) {
