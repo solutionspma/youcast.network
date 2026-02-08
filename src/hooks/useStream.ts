@@ -415,6 +415,13 @@ export function useStream(channelId?: string) {
     
     if (video.srcObject !== stream) {
       video.srcObject = stream;
+      
+      // Wait for video metadata to load before rendering
+      video.onloadedmetadata = () => {
+        video.play().catch(err => {
+          console.warn('Video autoplay failed:', err);
+        });
+      };
     }
     
     return video;
@@ -433,17 +440,20 @@ export function useStream(channelId?: string) {
     
     const video = getOrCreateVideoElement(primarySource.id, primarySource.stream);
     
-    // Debug video state
+    // Wait for video to be ready
     if (video.readyState < video.HAVE_CURRENT_DATA) {
-      console.log('Video not ready yet, readyState:', video.readyState);
-      // Draw waiting message
+      // Show waiting state on canvas
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = '36px Arial';
-      ctx.fillText('Loading video...', 50, 100);
+      ctx.font = '48px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Initializing camera...', canvas.width / 2, canvas.height / 2);
+      ctx.font = '24px Arial';
+      ctx.fillStyle = '#999999';
+      ctx.fillText(`Video state: ${video.readyState}`, canvas.width / 2, canvas.height / 2 + 50);
       return;
     }
-    
-    console.log('Rendering video:', video.videoWidth, 'x', video.videoHeight);
     
     // Maintain aspect ratio with letterboxing
     const videoAspect = video.videoWidth / video.videoHeight;
@@ -526,20 +536,18 @@ export function useStream(channelId?: string) {
     // Get active scene
     const activeScene = scenes.find(s => s.id === activeSceneId);
     if (!activeScene || activeScene.sources.length === 0) {
-      // Debug: No scene or sources
-      ctx.fillStyle = '#FF0000';
+      // Show helpful message if no scene or sources
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#E6672A';
       ctx.font = '48px Arial';
-      ctx.fillText('No Scene or Sources', 50, 100);
+      ctx.textAlign = 'center';
+      ctx.fillText('No video sources', canvas.width / 2, canvas.height / 2);
+      ctx.font = '24px Arial';
+      ctx.fillStyle = '#999999';
+      ctx.fillText('Select a camera or start screen share', canvas.width / 2, canvas.height / 2 + 50);
       animationFrameRef.current = requestAnimationFrame(renderFrame);
       return;
-    }
-    
-    // Debug: Show scene info
-    const enabledSources = activeScene.sources.filter(s => s.enabled);
-    if (enabledSources.length === 0) {
-      ctx.fillStyle = '#FFFF00';
-      ctx.font = '48px Arial';
-      ctx.fillText('No Enabled Sources', 50, 100);
     }
     
     // Render sources based on layout
