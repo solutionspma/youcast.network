@@ -8,11 +8,12 @@ import Badge from '@/components/ui/Badge';
 export default function AdminPage() {
   const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'content' | 'settings'>('overview');
 
+  // Real stats from Supabase - placeholder values until connected
   const stats = {
-    totalUsers: 1247,
-    activeCreators: 342,
-    totalViews: 8923456,
-    totalRevenue: 45230,
+    totalUsers: 0,
+    activeCreators: 0,
+    totalViews: 0,
+    totalRevenue: 0,
   };
 
   return (
@@ -64,7 +65,7 @@ export default function AdminPage() {
                 </svg>
               </div>
               <div className="text-2xl font-display font-bold text-white">{stats.totalUsers.toLocaleString()}</div>
-              <div className="text-xs text-emerald-400 mt-1">+12% this month</div>
+              <div className="text-xs text-surface-500 mt-1">—</div>
             </Card>
 
             <Card className="p-6">
@@ -75,7 +76,7 @@ export default function AdminPage() {
                 </svg>
               </div>
               <div className="text-2xl font-display font-bold text-white">{stats.activeCreators.toLocaleString()}</div>
-              <div className="text-xs text-emerald-400 mt-1">+8% this month</div>
+              <div className="text-xs text-surface-500 mt-1">—</div>
             </Card>
 
             <Card className="p-6">
@@ -86,8 +87,8 @@ export default function AdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
               </div>
-              <div className="text-2xl font-display font-bold text-white">{(stats.totalViews / 1000000).toFixed(1)}M</div>
-              <div className="text-xs text-emerald-400 mt-1">+24% this month</div>
+              <div className="text-2xl font-display font-bold text-white">{stats.totalViews === 0 ? '0' : `${(stats.totalViews / 1000000).toFixed(1)}M`}</div>
+              <div className="text-xs text-surface-500 mt-1">—</div>
             </Card>
 
             <Card className="p-6">
@@ -97,8 +98,8 @@ export default function AdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div className="text-2xl font-display font-bold text-white">${(stats.totalRevenue / 1000).toFixed(1)}K</div>
-              <div className="text-xs text-emerald-400 mt-1">+18% this month</div>
+              <div className="text-2xl font-display font-bold text-white">${stats.totalRevenue === 0 ? '0' : `${(stats.totalRevenue / 1000).toFixed(1)}K`}</div>
+              <div className="text-xs text-surface-500 mt-1">—</div>
             </Card>
           </div>
 

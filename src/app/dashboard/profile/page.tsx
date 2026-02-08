@@ -1,16 +1,84 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ProfilePage() {
   const [displayName, setDisplayName] = useState('Elevation Studios');
   const [bio, setBio] = useState('Live worship broadcasts and faith-based content reaching communities worldwide.');
   const [channelSlug, setChannelSlug] = useState('elevation-studios');
+  const [uploading, setUploading] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBannerClick = () => {
+    bannerInputRef.current?.click();
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) throw new Error('Not authenticated');
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `banners/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('media')
+        .getPublicUrl(filePath);
+
+      const { data: channels } = await supabase
+        .from('channels')
+        .select('id')
+        .eq('creator_id', user.id)
+        .single();
+
+      if (channels) {
+        await supabase
+          .from('channels')
+          .update({ banner_url: publicUrl })
+          .eq('id', channels.id);
+      }
+
+      alert('Banner uploaded successfully!');
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Failed to upload banner');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -80,11 +148,25 @@ export default function ProfilePage() {
       {/* Banner */}
       <Card variant="default">
         <h3 className="text-lg font-semibold text-white mb-4">Channel Banner</h3>
-        <div className="h-40 bg-surface-800 rounded-xl border-2 border-dashed border-surface-600 flex flex-col items-center justify-center hover:border-brand-500/50 transition-colors cursor-pointer">
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleBannerUpload}
+          className="hidden"
+        />
+        <div 
+          onClick={handleBannerClick}
+          className="h-40 bg-surface-800 rounded-xl border-2 border-dashed border-surface-600 flex flex-col items-center justify-center hover:border-brand-500/50 transition-colors cursor-pointer"
+        >
           <svg className="w-10 h-10 text-surface-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <p className="text-sm text-surface-500">Click to upload banner (2560 x 440 recommended)</p>
+          {uploading ? (
+            <p className="text-sm text-brand-400">Uploading...</p>
+          ) : (
+            <p className="text-sm text-surface-500">Click to upload banner (2560 x 440 recommended)</p>
+          )}
         </div>
       </Card>
     </div>
