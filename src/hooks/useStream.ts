@@ -445,7 +445,7 @@ export function useStream(channelId?: string) {
     }
     
     animationFrameRef.current = requestAnimationFrame(renderFrame);
-  }, [scenes, activeSceneId, getOrCreateVideoElement, renderFullscreen, renderPictureInPicture, renderSideBySide]);
+  }, [scenes, activeSceneId]);
   
   const renderFullscreen = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, sources: StreamSource[]) => {
     // Priority: screen > camera > other
