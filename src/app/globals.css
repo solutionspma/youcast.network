@@ -60,11 +60,11 @@
 
   /* Brand red glow */
   .glow-brand {
-    box-shadow: 0 0 60px -12px rgba(255, 49, 49, 0.25);
+    box-shadow: 0 0 60px -12px rgba(230, 103, 42, 0.3);
   }
 
   .glow-brand-sm {
-    box-shadow: 0 0 30px -8px rgba(255, 49, 49, 0.2);
+    box-shadow: 0 0 30px -8px rgba(230, 103, 42, 0.2);
   }
 
   /* Text highlight with brand underline */
@@ -107,7 +107,7 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, rgba(255,49,49,0.5), rgba(255,107,107,0.1), rgba(245,197,24,0.3));
+    background: linear-gradient(135deg, rgba(230,103,42,0.5), rgba(236,133,80,0.15), rgba(245,197,24,0.3));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
@@ -142,7 +142,7 @@
   /* Red marker dot */
   .marker {
     @apply w-2 h-2 rounded-full bg-brand-500;
-    box-shadow: 0 0 8px 2px rgba(255, 49, 49, 0.4);
+    box-shadow: 0 0 8px 2px rgba(230, 103, 42, 0.4);
   }
 
   /* Stagger animation helpers */

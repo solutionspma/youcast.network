@@ -66,14 +66,9 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-16">
           {/* Brand */}
           <div className="col-span-2">
-            <Link href="/" className="flex items-center gap-3 mb-5">
-              <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-              <span className="text-lg font-display font-bold text-white tracking-tight">
-                YOUCAST
+            <Link href="/" className="flex items-center gap-2 mb-5">
+              <span className="text-xl font-display font-bold tracking-tight">
+                <span className="text-white">YOU</span><span className="text-brand-400">CAST</span>
               </span>
             </Link>
             <p className="text-sm text-surface-500 leading-relaxed max-w-xs mb-6">

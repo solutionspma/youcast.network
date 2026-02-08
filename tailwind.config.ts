@@ -11,17 +11,17 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          50: '#fff5f5',
-          100: '#ffe3e3',
-          200: '#ffc9c9',
-          300: '#ffa3a3',
-          400: '#ff6b6b',
-          500: '#ff3131',
-          600: '#f03e3e',
-          700: '#c92a2a',
-          800: '#a61e1e',
-          900: '#801414',
-          950: '#4a0808',
+          50: '#FEF5EE',
+          100: '#FCEADB',
+          200: '#F8D0B5',
+          300: '#F3AF84',
+          400: '#EC8550',
+          500: '#E6672A',
+          600: '#D74F1F',
+          700: '#B33C1C',
+          800: '#8F311D',
+          900: '#74291B',
+          950: '#3E120B',
         },
         surface: {
           50: '#fafafa',
@@ -44,7 +44,7 @@ const config: Config = {
           violet: '#8B5CF6',
           coral: '#FF6B6B',
         },
-        live: '#FF3131',
+        live: '#EF4444',
       },
       fontFamily: {
         sans: ['DM Sans', 'system-ui', '-apple-system', 'sans-serif'],

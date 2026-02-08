@@ -21,14 +21,9 @@ export default function Navbar() {
       <nav className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo — typographic treatment */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center transition-all duration-300 group-hover:rounded-xl group-hover:shadow-lg group-hover:shadow-brand-500/25">
-              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
-            <span className="text-lg font-display font-bold text-white tracking-tight">
-              YOUCAST
+          <Link href="/" className="flex items-center gap-2 group">
+            <span className="text-xl font-display font-bold tracking-tight">
+              <span className="text-white">YOU</span><span className="text-brand-400">CAST</span>
             </span>
           </Link>
 

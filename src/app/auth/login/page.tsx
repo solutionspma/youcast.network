@@ -36,13 +36,8 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 to-surface-950" />
         <div className="relative flex flex-col justify-center px-16">
           <Link href="/" className="flex items-center gap-2.5 mb-12">
-            <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
-            <span className="text-2xl font-bold text-white tracking-tight">
-              You<span className="text-brand-400">cast</span>
+            <span className="text-2xl font-display font-bold tracking-tight">
+              <span className="text-white">YOU</span><span className="text-brand-400">CAST</span>
             </span>
           </Link>
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
@@ -59,13 +54,8 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <Link href="/" className="flex items-center gap-2.5 mb-8 lg:hidden">
-            <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-white">
-              You<span className="text-brand-400">cast</span>
+            <span className="text-xl font-display font-bold tracking-tight">
+              <span className="text-white">YOU</span><span className="text-brand-400">CAST</span>
             </span>
           </Link>
 
