@@ -276,6 +276,12 @@ export function useStream(channelId?: string) {
   const addAudioSource = useCallback((id: string, stream: MediaStream, volume: number = 1.0) => {
     if (!audioContextRef.current || !audioDestinationRef.current) return;
     
+    // Check if stream has audio tracks
+    if (stream.getAudioTracks().length === 0) {
+      console.warn(`Stream ${id} has no audio tracks, skipping audio source creation`);
+      return;
+    }
+    
     // Remove existing source if any
     removeAudioSource(id);
     
@@ -665,6 +671,21 @@ export function useStream(channelId?: string) {
       }
       
       setLiveKitClient(client);
+      
+      // Start RTMP egress for multi-platform streaming
+      try {
+        const { startRtmpEgress } = await import('@/lib/livekit/client');
+        const egressResult = await startRtmpEgress(roomName, channelId);
+        
+        if (egressResult.success) {
+          console.log('✅ RTMP egress started:', egressResult.egressIds);
+        } else {
+          console.warn('⚠️ Some RTMP destinations failed:', egressResult.errors);
+        }
+      } catch (error) {
+        console.error('Failed to start RTMP egress:', error);
+        // Continue anyway - LiveKit stream is still working
+      }
       
       // Set status to live
       setStatus('live');

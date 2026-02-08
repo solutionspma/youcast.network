@@ -143,7 +143,42 @@ CREATE POLICY "Creators can manage own stream scenes" ON stream_scenes FOR ALL U
 );
 
 -- ============================================================================
--- 5. MEDIA LIBRARY
+-- 5. STREAMING DESTINATIONS (Multi-Platform Streaming)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS streaming_destinations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  channel_id UUID REFERENCES channels(id) ON DELETE CASCADE NOT NULL,
+  platform TEXT NOT NULL CHECK (platform IN ('youtube', 'facebook', 'twitch', 'twitter', 'custom')),
+  name TEXT NOT NULL,
+  rtmp_url TEXT NOT NULL,
+  stream_key TEXT NOT NULL,
+  is_enabled BOOLEAN DEFAULT true,
+  is_connected BOOLEAN DEFAULT false,
+  last_stream_at TIMESTAMP WITH TIME ZONE,
+  oauth_token TEXT, -- For platforms with OAuth
+  oauth_refresh_token TEXT,
+  oauth_expires_at TIMESTAMP WITH TIME ZONE,
+  metadata JSONB DEFAULT '{}', -- Platform-specific data
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE streaming_destinations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Creators can manage own streaming destinations" ON streaming_destinations FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM channels
+    WHERE channels.id = streaming_destinations.channel_id
+    AND channels.creator_id = auth.uid()
+  )
+);
+
+CREATE INDEX idx_streaming_destinations_channel ON streaming_destinations(channel_id);
+CREATE INDEX idx_streaming_destinations_platform ON streaming_destinations(platform);
+
+-- ============================================================================
+-- 6. MEDIA LIBRARY
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS media (
@@ -180,7 +215,7 @@ CREATE INDEX idx_media_channel ON media(channel_id);
 CREATE INDEX idx_media_published ON media(published_at);
 
 -- ============================================================================
--- 6. SUBSCRIPTIONS
+-- 7. SUBSCRIPTIONS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS subscriptions (
@@ -205,7 +240,7 @@ CREATE INDEX idx_subscriptions_subscriber ON subscriptions(subscriber_id);
 CREATE INDEX idx_subscriptions_channel ON subscriptions(channel_id);
 
 -- ============================================================================
--- 7. MONETIZATION - TRANSACTIONS
+-- 8. MONETIZATION - TRANSACTIONS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -236,7 +271,7 @@ CREATE INDEX idx_transactions_user ON transactions(user_id);
 CREATE INDEX idx_transactions_channel ON transactions(channel_id);
 
 -- ============================================================================
--- 8. ANALYTICS - VIEW EVENTS
+-- 9. ANALYTICS - VIEW EVENTS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS view_events (
@@ -262,7 +297,7 @@ CREATE INDEX idx_view_events_stream ON view_events(stream_id);
 CREATE INDEX idx_view_events_created ON view_events(created_at);
 
 -- ============================================================================
--- 9. ANALYTICS - ENGAGEMENT EVENTS
+-- 10. ANALYTICS - ENGAGEMENT EVENTS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS engagement_events (
@@ -282,7 +317,7 @@ CREATE INDEX idx_engagement_events_stream ON engagement_events(stream_id);
 CREATE INDEX idx_engagement_events_type ON engagement_events(event_type);
 
 -- ============================================================================
--- 10. SYSTEM SETTINGS
+-- 11. SYSTEM SETTINGS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS system_settings (
@@ -314,7 +349,7 @@ INSERT INTO system_settings (key, value, description) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- ============================================================================
--- 11. FEATURE FLAGS
+-- 12. FEATURE FLAGS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS feature_flags (
@@ -352,7 +387,7 @@ INSERT INTO feature_flags (name, enabled, description) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ============================================================================
--- 12. ADMIN ACTIONS (AUDIT LOG)
+-- 13. ADMIN ACTIONS (AUDIT LOG)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS admin_actions (
@@ -380,7 +415,7 @@ CREATE INDEX idx_admin_actions_admin ON admin_actions(admin_id);
 CREATE INDEX idx_admin_actions_created ON admin_actions(created_at);
 
 -- ============================================================================
--- 13. NOTIFICATIONS
+-- 14. NOTIFICATIONS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -403,7 +438,7 @@ CREATE INDEX idx_notifications_user ON notifications(user_id);
 CREATE INDEX idx_notifications_unread ON notifications(user_id, is_read);
 
 -- ============================================================================
--- 14. STREAM HEALTH METRICS
+-- 15. STREAM HEALTH METRICS
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS stream_health_metrics (
@@ -434,7 +469,7 @@ CREATE INDEX idx_stream_health_stream ON stream_health_metrics(stream_id);
 CREATE INDEX idx_stream_health_created ON stream_health_metrics(created_at);
 
 -- ============================================================================
--- 15. REVENUE SPLITS (For future white-label)
+-- 16. REVENUE SPLITS (For future white-label)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS revenue_splits (

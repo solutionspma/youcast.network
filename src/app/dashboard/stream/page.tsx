@@ -42,26 +42,43 @@ export default function StreamStudioPage() {
   // Initialize Stream Hook with REAL device connections
   const stream = useStream(channelId);
   
-  // Get channel ID from user
+  // Get channel ID from user (create if doesn't exist)
   useEffect(() => {
-    const fetchChannel = async () => {
+    const fetchOrCreateChannel = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        const { data: channel } = await supabase
+        // Try to get existing channel
+        const { data: channels } = await supabase
           .from('channels')
           .select('id')
-          .eq('user_id', user.id)
-          .single();
+          .eq('creator_id', user.id)
+          .limit(1);
         
-        if (channel) {
-          setChannelId(channel.id);
+        if (channels && channels.length > 0) {
+          setChannelId(channels[0].id);
+        } else {
+          // Create new channel
+          const { data: newChannel } = await supabase
+            .from('channels')
+            .insert({
+              creator_id: user.id,
+              name: `${user.email?.split('@')[0] || 'User'}'s Channel`,
+              handle: `${user.id.substring(0, 8)}-channel`,
+              description: 'My streaming channel'
+            })
+            .select('id')
+            .single();
+          
+          if (newChannel) {
+            setChannelId(newChannel.id);
+          }
         }
       }
     };
     
-    fetchChannel();
+    fetchOrCreateChannel();
   }, []);
   
   // Initialize canvas when ref is available

@@ -293,6 +293,34 @@ export function createLiveKitClient(): LiveKitClient {
 }
 
 // ============================================================================
+// RTMP EGRESS (Multi-Platform Streaming)
+// ============================================================================
+
+export async function startRtmpEgress(roomName: string, channelId: string): Promise<{
+  success: boolean;
+  egressIds?: Record<string, string>;
+  errors?: Record<string, string>;
+}> {
+  try {
+    const supabase = createClient();
+    
+    const { data, error } = await supabase.functions.invoke('start-rtmp-egress', {
+      body: { roomName, channelId }
+    });
+
+    if (error) {
+      console.error('Failed to start RTMP egress:', error);
+      return { success: false, errors: { general: error.message } };
+    }
+
+    return data;
+  } catch (error) {
+    console.error('RTMP egress error:', error);
+    return { success: false, errors: { general: String(error) } };
+  }
+}
+
+// ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
