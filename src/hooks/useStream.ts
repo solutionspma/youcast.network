@@ -283,6 +283,21 @@ export function useStream(channelId?: string) {
     }
   }, []);
   
+  const removeAudioSource = useCallback((id: string) => {
+    const source = audioSourcesRef.current.get(id);
+    const gainNode = gainNodesRef.current.get(id);
+    
+    if (source) {
+      source.disconnect();
+      audioSourcesRef.current.delete(id);
+    }
+    
+    if (gainNode) {
+      gainNode.disconnect();
+      gainNodesRef.current.delete(id);
+    }
+  }, []);
+  
   const addAudioSource = useCallback((id: string, stream: MediaStream, volume: number = 1.0) => {
     if (!audioContextRef.current || !audioDestinationRef.current) return;
     
@@ -305,21 +320,6 @@ export function useStream(channelId?: string) {
     audioSourcesRef.current.set(id, source);
     gainNodesRef.current.set(id, gainNode);
   }, [removeAudioSource]);
-  
-  const removeAudioSource = useCallback((id: string) => {
-    const source = audioSourcesRef.current.get(id);
-    const gainNode = gainNodesRef.current.get(id);
-    
-    if (source) {
-      source.disconnect();
-      audioSourcesRef.current.delete(id);
-    }
-    
-    if (gainNode) {
-      gainNode.disconnect();
-      gainNodesRef.current.delete(id);
-    }
-  }, []);
   
   const setAudioVolume = useCallback((id: string, volume: number) => {
     const gainNode = gainNodesRef.current.get(id);
@@ -671,6 +671,49 @@ export function useStream(channelId?: string) {
     setStatus('offline');
   }, []);
   
+  const monitorStreamHealth = useCallback(() => {
+    if (!peerConnectionRef.current) return;
+    
+    peerConnectionRef.current.getStats().then(stats => {
+      let totalBitrate = 0;
+      let fps = 0;
+      let packetLoss = 0;
+      
+      stats.forEach(report => {
+        if (report.type === 'outbound-rtp') {
+          if (report.mediaType === 'video') {
+            totalBitrate += report.bytesSent || 0;
+            fps = report.framesPerSecond || 0;
+          }
+        }
+        
+        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+          const rtt = report.currentRoundTripTime || 0;
+          packetLoss = ((report.packetsLost || 0) / (report.packetsSent || 1)) * 100;
+          
+          setStreamHealth(prev => ({
+            ...prev,
+            latency: Math.round(rtt * 1000),
+            packetLoss: Math.round(packetLoss * 100) / 100
+          }));
+        }
+      });
+      
+      // Calculate network quality
+      let networkQuality: StreamHealth['networkQuality'] = 'excellent';
+      if (packetLoss > 5 || fps < 20) networkQuality = 'poor';
+      else if (packetLoss > 2 || fps < 25) networkQuality = 'fair';
+      else if (packetLoss > 1 || fps < 28) networkQuality = 'good';
+      
+      setStreamHealth(prev => ({
+        ...prev,
+        bitrate: Math.round(totalBitrate / 1000),
+        fps,
+        networkQuality
+      }));
+    });
+  }, []);
+  
   const goLive = useCallback(async () => {
     if (!canvasRef.current || !audioDestinationRef.current || !channelId) {
       console.error('Missing canvas, audio destination, or channel ID');
@@ -787,7 +830,7 @@ export function useStream(channelId?: string) {
       setStatus('error');
       return false;
     }
-  }, [channelId, selectedCamera, selectedMicrophone, monitorStreamHealth]);
+  }, [channelId, monitorStreamHealth]);
   
   const stopStream = useCallback(async () => {
     // Guard: Only allow user-initiated stops
@@ -860,49 +903,6 @@ export function useStream(channelId?: string) {
       return false;
     }
   }, [liveKitClient, streamId, stopCamera, stopMicrophone, stopScreenShare]);
-  
-  const monitorStreamHealth = useCallback(() => {
-    if (!peerConnectionRef.current) return;
-    
-    peerConnectionRef.current.getStats().then(stats => {
-      let totalBitrate = 0;
-      let fps = 0;
-      let packetLoss = 0;
-      
-      stats.forEach(report => {
-        if (report.type === 'outbound-rtp') {
-          if (report.mediaType === 'video') {
-            totalBitrate += report.bytesSent || 0;
-            fps = report.framesPerSecond || 0;
-          }
-        }
-        
-        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-          const rtt = report.currentRoundTripTime || 0;
-          packetLoss = ((report.packetsLost || 0) / (report.packetsSent || 1)) * 100;
-          
-          setStreamHealth(prev => ({
-            ...prev,
-            latency: Math.round(rtt * 1000),
-            packetLoss: Math.round(packetLoss * 100) / 100
-          }));
-        }
-      });
-      
-      // Calculate network quality
-      let networkQuality: StreamHealth['networkQuality'] = 'excellent';
-      if (packetLoss > 5 || fps < 20) networkQuality = 'poor';
-      else if (packetLoss > 2 || fps < 25) networkQuality = 'fair';
-      else if (packetLoss > 1 || fps < 28) networkQuality = 'good';
-      
-      setStreamHealth(prev => ({
-        ...prev,
-        bitrate: Math.round(totalBitrate / 1000),
-        fps,
-        networkQuality
-      }));
-    });
-  }, []);
   
   // ============================================================================
   // INITIALIZE & CLEANUP
