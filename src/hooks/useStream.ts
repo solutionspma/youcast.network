@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { LiveKitClient, createLiveKitClient, generateLiveKitToken } from '@/lib/livekit/client';
 import { startPreview as startCameraPreview } from '@/lib/streamStudio/startPreview';
+import { IS_PRODUCTION_DATA } from '@/lib/env';
+import { assertNoExternalReset, type StreamDBState } from '@/lib/streamStudio/constants';
 
 // ============================================================================
 // TYPES
@@ -657,6 +659,12 @@ export function useStream(channelId?: string) {
   ]);
   
   const stopPreview = useCallback(() => {
+    // Guard: Only allow user-initiated stops
+    if (!assertNoExternalReset('user')) {
+      console.warn('🚫 stopPreview blocked: not user-initiated');
+      return;
+    }
+    
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -695,7 +703,7 @@ export function useStream(channelId?: string) {
         .insert({
           channel_id: channelId,
           title: `Live Stream - ${new Date().toLocaleString()}`,
-          status: 'live',
+          status: 'draft' as StreamDBState, // Start as draft, update to live after publish succeeds
           webrtc_room_id: `stream-${Date.now()}`,
         })
         .select()
@@ -750,9 +758,15 @@ export function useStream(channelId?: string) {
         // Continue anyway - LiveKit stream is still working
       }
       
-      // Set status to live
+      // Set status to live AFTER LiveKit connection succeeds
       setStatus('live');
       setDuration(0);
+      
+      // Update stream record from draft to live
+      await supabase
+        .from('streams')
+        .update({ status: 'live' as StreamDBState })
+        .eq('id', stream.id);
       
       // Start duration timer
       durationTimerRef.current = setInterval(() => {
@@ -776,6 +790,12 @@ export function useStream(channelId?: string) {
   }, [channelId, selectedCamera, selectedMicrophone]);
   
   const stopStream = useCallback(async () => {
+    // Guard: Only allow user-initiated stops
+    if (!assertNoExternalReset('user')) {
+      console.warn('🚫 stopStream blocked: not user-initiated');
+      return false;
+    }
+    
     try {
       // Disconnect from LiveKit
       if (liveKitClient) {
@@ -817,7 +837,7 @@ export function useStream(channelId?: string) {
         await supabase
           .from('streams')
           .update({ 
-            status: 'ended',
+            status: 'ended' as StreamDBState,
             ended_at: new Date().toISOString()
           })
           .eq('id', streamId);

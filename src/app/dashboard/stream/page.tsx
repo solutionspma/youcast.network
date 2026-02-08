@@ -5,6 +5,8 @@ import { useStream } from '@/hooks/useStream';
 import { createClient } from '@/lib/supabase/client';
 import StreamChat from '@/components/stream/StreamChat';
 import Badge from '@/components/ui/Badge';
+import { IS_PRODUCTION_DATA } from '@/lib/env';
+import { STREAM_STUDIO_MODE, assertNoExternalReset } from '@/lib/streamStudio/constants';
 
 // ============================================================================
 // TYPES
@@ -22,7 +24,8 @@ type ChatMessage = {
   amount?: number;
 };
 
-const mockChatMessages: ChatMessage[] = [
+// Mock chat data ONLY for UI development - NOT used in production stream state
+const mockChatMessages: ChatMessage[] = IS_PRODUCTION_DATA ? [] : [
   { id: '1', username: 'ViewerPro', message: 'Great stream! Love the setup 🔥', timestamp: '2m ago', type: 'message' },
   { id: '2', username: 'System', message: 'Stream started', timestamp: '5m ago', type: 'system' },
 ];
@@ -43,6 +46,13 @@ export default function StreamStudioPage() {
   
   // Initialize Stream Hook with REAL device connections
   const stream = useStream(channelId);
+  
+  // Production data verification
+  useEffect(() => {
+    console.log('🔥 STREAM STUDIO MODE:', STREAM_STUDIO_MODE);
+    console.log('🔥 USING REAL DATA:', IS_PRODUCTION_DATA);
+    console.log('🔥 STREAM STATE (LOCAL):', stream.status);
+  }, [stream.status]);
   
   // Get channel ID from user (create if doesn't exist)
   useEffect(() => {
@@ -123,13 +133,9 @@ export default function StreamStudioPage() {
     }
   }, [cameraResolution, cameraFrameRate]);
   
-  // Debug: Log state changes to track race conditions
-  useEffect(() => {
-    console.log('STREAM STATE:', stream.status);
-  }, [stream.status]);
-  
   // DO NOT auto-start or auto-reset preview
   // Preview should only start/stop on explicit user action
+  // State changes must come from user interaction ONLY
   
   const handleSendMessage = useCallback((message: string) => {
     setChatMessages(prev => [...prev, {

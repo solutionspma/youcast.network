@@ -1,0 +1,35 @@
+/* src/styles/stream-studio.css */
+
+.studio {
+  display: flex;
+  height: 100%;
+}
+
+.preview {
+  flex: 1;
+  background: black;
+}
+
+.video-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.controls {
+  width: 320px;
+  padding: 1rem;
+}
+
+@media (max-width: 768px) {
+  .studio {
+    flex-direction: column;
+  }
+
+  .controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+}
