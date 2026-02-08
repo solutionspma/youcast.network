@@ -304,7 +304,7 @@ export function useStream(channelId?: string) {
     
     audioSourcesRef.current.set(id, source);
     gainNodesRef.current.set(id, gainNode);
-  }, []);
+  }, [removeAudioSource]);
   
   const removeAudioSource = useCallback((id: string) => {
     const source = audioSourcesRef.current.get(id);
@@ -787,7 +787,7 @@ export function useStream(channelId?: string) {
       setStatus('error');
       return false;
     }
-  }, [channelId, selectedCamera, selectedMicrophone]);
+  }, [channelId, selectedCamera, selectedMicrophone, monitorStreamHealth]);
   
   const stopStream = useCallback(async () => {
     // Guard: Only allow user-initiated stops

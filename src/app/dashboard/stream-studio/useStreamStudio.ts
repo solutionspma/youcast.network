@@ -12,7 +12,11 @@ export function useStreamStudio() {
   }
 
   useEffect(() => {
-    return controllerRef.current!.subscribe(setState);
+    if (!controllerRef.current) return;
+    const unsubscribe = controllerRef.current.subscribe(setState);
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return {
