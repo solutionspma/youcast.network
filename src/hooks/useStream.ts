@@ -408,7 +408,10 @@ export function useStream(channelId?: string) {
   }, []);
   
   const renderFrame = useCallback(() => {
-    if (!compositorRef.current || !canvasRef.current) return;
+    if (!compositorRef.current || !canvasRef.current) {
+      animationFrameRef.current = requestAnimationFrame(renderFrame);
+      return;
+    }
     
     const ctx = compositorRef.current;
     const canvas = canvasRef.current;
@@ -442,7 +445,7 @@ export function useStream(channelId?: string) {
     }
     
     animationFrameRef.current = requestAnimationFrame(renderFrame);
-  }, [scenes, activeSceneId, getOrCreateVideoElement]);
+  }, [scenes, activeSceneId, getOrCreateVideoElement, renderFullscreen, renderPictureInPicture, renderSideBySide]);
   
   const renderFullscreen = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, sources: StreamSource[]) => {
     // Priority: screen > camera > other
@@ -527,11 +530,13 @@ export function useStream(channelId?: string) {
   
   const startPreview = useCallback(async () => {
     try {
+      console.log('Starting preview...');
       setStatus('preview');
       initAudioMixer();
       
       // Start camera and mic if not already started
       if (!cameraStream && selectedCamera) {
+        console.log('Starting camera:', selectedCamera);
         const cam = await startCamera(selectedCamera);
         if (cam) {
           addAudioSource('camera-audio', cam, 0); // Camera audio usually not needed
@@ -539,6 +544,7 @@ export function useStream(channelId?: string) {
       }
       
       if (!audioStream && selectedMicrophone) {
+        console.log('Starting microphone:', selectedMicrophone);
         const audio = await startMicrophone(selectedMicrophone);
         if (audio) {
           addAudioSource('microphone', audio, 1.0);
@@ -547,6 +553,7 @@ export function useStream(channelId?: string) {
       
       // Create default scene if none exist
       if (scenes.length === 0) {
+        console.log('Creating default scene');
         createScene('Main Scene', 'fullscreen');
       }
       
@@ -554,7 +561,14 @@ export function useStream(channelId?: string) {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      
+      console.log('Starting render loop');
       renderFrame();
+      
+      // Keep status as preview after render starts
+      setTimeout(() => {
+        setStatus('preview');
+      }, 100);
       
     } catch (error) {
       console.error('Failed to start preview:', error);
@@ -569,7 +583,6 @@ export function useStream(channelId?: string) {
     startMicrophone, 
     initAudioMixer, 
     addAudioSource,
-    scenes.length,
     createScene,
     renderFrame
   ]);
