@@ -10,12 +10,17 @@ import { STREAM_STUDIO_MODE, assertNoExternalReset } from '@/lib/streamStudio/co
 import { useLowerThirds } from '@/components/stream/useLowerThirds';
 import { useLowerThirdHotkeys } from '@/components/stream/lower-thirds/useLowerThirdHotkeys';
 import { LowerThirdEditor } from '@/components/stream/lower-thirds/LowerThirdEditor';
+import { useOverlays } from '@/components/stream/useOverlays';
+import { useCompositor } from '@/components/stream/useCompositor';
+import { useGlobalShortcuts } from '@/components/stream/useGlobalShortcuts';
+import { OverlayControlPanel } from '@/components/stream/overlays/OverlayControlPanel';
+import { DestinationManager } from '@/components/stream/destinations/DestinationManager';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type LeftPanel = 'devices' | 'scenes' | 'audio' | 'graphics';
+type LeftPanel = 'devices' | 'scenes' | 'audio' | 'graphics' | 'overlays' | 'destinations';
 type RightPanel = 'chat' | 'stats';
 
 type ChatMessage = {
@@ -47,13 +52,27 @@ export default function StreamStudioPage() {
   
   const isInitialMount = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   
   // Initialize Stream Hook with REAL device connections
   const stream = useStream(channelId);
   
-  // Lower Thirds System
-  const lowerThirdEngine = useLowerThirds(canvasRef);
-  useLowerThirdHotkeys(lowerThirdEngine);
+  // Graphics Systems
+  const lowerThirds = useLowerThirds();
+  const overlays = useOverlays();
+  
+  // Unified Compositor (renders everything)
+  useCompositor(
+    canvasRef,
+    videoRef,
+    overlays.layers,
+    lowerThirds.payload,
+    lowerThirds.getProgress
+  );
+  
+  // Keyboard shortcuts
+  useLowerThirdHotkeys(lowerThirds.engine);
+  useGlobalShortcuts(overlays.engine, lowerThirds.engine);
   
   // Production data verification
   useEffect(() => {
@@ -107,6 +126,16 @@ export default function StreamStudioPage() {
       stream.initCanvas(canvasRef.current);
     }
   }, [stream]);
+  
+  // Connect camera stream to video element for compositor
+  useEffect(() => {
+    if (videoRef.current && stream.cameraStream) {
+      videoRef.current.srcObject = stream.cameraStream;
+      videoRef.current.play().catch(err => {
+        console.warn('Video play failed:', err);
+      });
+    }
+  }, [stream.cameraStream]);
   
   // Format duration
   const formatDuration = (seconds: number) => {
@@ -194,11 +223,11 @@ export default function StreamStudioPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Left Sidebar — Devices / Scenes / Audio */}
-        <div className="w-full md:w-72 bg-surface-900/80 border-r border-surface-700/50 flex flex-col md:max-h-none max-h-48">
+        {/* Left Sidebar — Devices / Scenes / Audio / Graphics */}
+        <div className="w-full md:w-80 bg-surface-900/80 border-r border-surface-700/50 flex flex-col md:max-h-none max-h-48">
           {/* Panel Tabs */}
-          <div className="flex border-b border-surface-700/50">
-            {(['devices', 'scenes', 'audio', 'graphics'] as LeftPanel[]).map((tab) => (
+          <div className="flex border-b border-surface-700/50 overflow-x-auto">
+            {(['devices', 'scenes', 'audio', 'graphics', 'overlays', 'destinations'] as LeftPanel[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setLeftPanel(tab)}
@@ -433,7 +462,21 @@ export default function StreamStudioPage() {
             {/* GRAPHICS PANEL - Lower Thirds */}
             {leftPanel === 'graphics' && (
               <div className="space-y-4">
-                <LowerThirdEditor engine={lowerThirdEngine} />
+                <LowerThirdEditor engine={lowerThirds.engine} />
+              </div>
+            )}
+            
+            {/* OVERLAYS PANEL - Logo, Images, Chroma Key */}
+            {leftPanel === 'overlays' && (
+              <div className="space-y-4">
+                <OverlayControlPanel engine={overlays.engine} />
+              </div>
+            )}
+            
+            {/* DESTINATIONS PANEL - Multistream RTMP */}
+            {leftPanel === 'destinations' && (
+              <div className="space-y-4">
+                <DestinationManager />
               </div>
             )}
           </div>
@@ -445,6 +488,16 @@ export default function StreamStudioPage() {
           <div className="flex-1 flex items-center justify-center">
             <div className="w-full max-w-5xl">
               <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                {/* Hidden video element for compositor */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="hidden"
+                />
+                
+                {/* Main canvas output */}
                 <canvas
                   ref={canvasRef}
                   className="w-full h-full"

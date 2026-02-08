@@ -1,44 +1,29 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LowerThirdEngine } from "./lower-thirds/LowerThirdEngine";
-import { renderLowerThird } from "./lower-thirds/LowerThirdRenderer";
 import { LowerThirdPayload } from "./lower-thirds/types";
 
-export function useLowerThirds(
-  canvasRef: React.RefObject<HTMLCanvasElement>
-) {
+export function useLowerThirds() {
   const engineRef = useRef(new LowerThirdEngine());
-  const payloadRef = useRef<LowerThirdPayload | null>(null);
-  const animStart = useRef<number | null>(null);
+  const [payload, setPayload] = useState<LowerThirdPayload | null>(null);
+  const [animStart, setAnimStart] = useState<number>(0);
 
   useEffect(() => {
-    return engineRef.current.subscribe((payload) => {
-      payloadRef.current = payload;
-      animStart.current = performance.now();
+    return engineRef.current.subscribe((newPayload) => {
+      setPayload(newPayload);
+      setAnimStart(performance.now());
     });
   }, []);
 
-  useEffect(() => {
-    let raf: number;
+  // Calculate animation progress
+  const getProgress = () => {
+    if (!payload || !animStart) return 1;
+    const elapsed = performance.now() - animStart;
+    return Math.min(elapsed / 300, 1);
+  };
 
-    const loop = (t: number) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      if (payloadRef.current) {
-        const elapsed = t - (animStart.current ?? t);
-        const progress = Math.min(elapsed / 300, 1);
-        renderLowerThird(ctx, payloadRef.current, progress, canvas);
-      }
-
-      raf = requestAnimationFrame(loop);
-    };
-
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [canvasRef]);
-
-  return engineRef.current;
+  return {
+    engine: engineRef.current,
+    payload,
+    getProgress,
+  };
 }
