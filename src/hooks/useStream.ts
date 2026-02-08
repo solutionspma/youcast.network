@@ -436,8 +436,20 @@ export function useStream(channelId?: string) {
     // Get active scene
     const activeScene = scenes.find(s => s.id === activeSceneId);
     if (!activeScene || activeScene.sources.length === 0) {
+      // Debug: No scene or sources
+      ctx.fillStyle = '#FF0000';
+      ctx.font = '48px Arial';
+      ctx.fillText('No Scene or Sources', 50, 100);
       animationFrameRef.current = requestAnimationFrame(renderFrame);
       return;
+    }
+    
+    // Debug: Show scene info
+    const enabledSources = activeScene.sources.filter(s => s.enabled);
+    if (enabledSources.length === 0) {
+      ctx.fillStyle = '#FFFF00';
+      ctx.font = '48px Arial';
+      ctx.fillText('No Enabled Sources', 50, 100);
     }
     
     // Render sources based on layout
@@ -458,7 +470,7 @@ export function useStream(channelId?: string) {
     }
     
     animationFrameRef.current = requestAnimationFrame(renderFrame);
-  }, [scenes, activeSceneId]);
+  }, [scenes, activeSceneId, renderFullscreen, renderPictureInPicture, renderSideBySide]);
   
   const renderFullscreen = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, sources: StreamSource[]) => {
     // Priority: screen > camera > other
@@ -466,30 +478,43 @@ export function useStream(channelId?: string) {
                          sources.find(s => s.enabled && s.type === 'camera') ||
                          sources.find(s => s.enabled);
     
-    if (!primarySource?.stream) return;
+    if (!primarySource?.stream) {
+      console.warn('No primary source stream in renderFullscreen');
+      return;
+    }
     
     const video = getOrCreateVideoElement(primarySource.id, primarySource.stream);
     
-    if (video.readyState >= video.HAVE_CURRENT_DATA) {
-      // Maintain aspect ratio with letterboxing
-      const videoAspect = video.videoWidth / video.videoHeight;
-      const canvasAspect = canvas.width / canvas.height;
-      
-      let drawWidth = canvas.width;
-      let drawHeight = canvas.height;
-      let drawX = 0;
-      let drawY = 0;
-      
-      if (videoAspect > canvasAspect) {
-        drawHeight = canvas.width / videoAspect;
-        drawY = (canvas.height - drawHeight) / 2;
-      } else {
-        drawWidth = canvas.height * videoAspect;
-        drawX = (canvas.width - drawWidth) / 2;
-      }
-      
-      ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
+    // Debug video state
+    if (video.readyState < video.HAVE_CURRENT_DATA) {
+      console.log('Video not ready yet, readyState:', video.readyState);
+      // Draw waiting message
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '36px Arial';
+      ctx.fillText('Loading video...', 50, 100);
+      return;
     }
+    
+    console.log('Rendering video:', video.videoWidth, 'x', video.videoHeight);
+    
+    // Maintain aspect ratio with letterboxing
+    const videoAspect = video.videoWidth / video.videoHeight;
+    const canvasAspect = canvas.width / canvas.height;
+    
+    let drawWidth = canvas.width;
+    let drawHeight = canvas.height;
+    let drawX = 0;
+    let drawY = 0;
+    
+    if (videoAspect > canvasAspect) {
+      drawHeight = canvas.width / videoAspect;
+      drawY = (canvas.height - drawHeight) / 2;
+    } else {
+      drawWidth = canvas.height * videoAspect;
+      drawX = (canvas.width - drawWidth) / 2;
+    }
+    
+    ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight);
   }, [getOrCreateVideoElement]);
   
   const renderPictureInPicture = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, sources: StreamSource[]) => {
