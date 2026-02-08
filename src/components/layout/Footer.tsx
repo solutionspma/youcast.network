@@ -68,10 +68,7 @@ export default function Footer() {
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-5">
               <img src="/youCastlogoorange.png" alt="YouCast" className="h-12 w-auto" />
-              <span className="text-xl font-display font-bold tracking-tight">
-                <span className="text-white">YOUR</span>
-                <span className="text-brand-400"> NETWORK</span>
-              </span>
+              <span className="text-2xl font-display font-bold tracking-tight text-brand-400">YOUCAST</span>
             </Link>
             <p className="text-sm text-surface-500 leading-relaxed max-w-xs mb-6">
               The creator-owned media platform.

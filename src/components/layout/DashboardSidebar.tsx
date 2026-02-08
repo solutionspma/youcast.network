@@ -138,10 +138,7 @@ export default function DashboardSidebar() {
       <div className="h-16 px-5 flex items-center border-b border-surface-800">
         <Link href="/" className="flex items-center gap-2.5">
           <img src="/youCastlogoorange.png" alt="YouCast" className="h-9 w-auto" />
-          <span className="text-base font-display font-bold tracking-tight">
-            <span className="text-white">YOUR</span>
-            <span className="text-brand-400"> NETWORK</span>
-          </span>
+          <span className="text-lg font-display font-bold tracking-tight text-brand-400">YOUCAST</span>
         </Link>
       </div>
 

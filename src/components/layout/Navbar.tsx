@@ -23,10 +23,7 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <img src="/youCastlogoorange.png" alt="YouCast" className="h-10 w-auto" />
-            <span className="text-lg font-display font-bold tracking-tight">
-              <span className="text-white">YOUR</span>
-              <span className="text-brand-400"> NETWORK</span>
-            </span>
+            <span className="text-xl font-display font-bold tracking-tight text-brand-400">YOUCAST</span>
           </Link>
 
           {/* Desktop Nav — minimal */}

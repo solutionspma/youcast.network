@@ -47,10 +47,7 @@ export default function LoginPage() {
         <div className="relative flex flex-col justify-center px-16">
           <Link href="/" className="flex items-center gap-4 mb-12">
             <img src="/youCastlogoorange.png" alt="YouCast" className="h-16 w-auto" />
-            <span className="text-2xl font-display font-bold tracking-tight">
-              <span className="text-white">YOUR</span>
-              <span className="text-brand-400"> NETWORK</span>
-            </span>
+            <span className="text-3xl font-display font-bold tracking-tight text-brand-400">YOUCAST</span>
           </Link>
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             Welcome back to your creative studio
@@ -67,10 +64,7 @@ export default function LoginPage() {
           {/* Mobile Logo */}
           <Link href="/" className="flex items-center gap-3 mb-8 lg:hidden">
             <img src="/youCastlogoorange.png" alt="YouCast" className="h-12 w-auto" />
-            <span className="text-xl font-display font-bold tracking-tight">
-              <span className="text-white">YOUR</span>
-              <span className="text-brand-400"> NETWORK</span>
-            </span>
+            <span className="text-2xl font-display font-bold tracking-tight text-brand-400">YOUCAST</span>
           </Link>
 
           <h2 className="text-2xl font-bold text-white mb-2">Sign in to Youcast</h2>
