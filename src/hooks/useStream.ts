@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { LiveKitClient, createLiveKitClient, generateLiveKitToken } from '@/lib/livekit/client';
+import { startPreview as startCameraPreview } from '@/lib/streamStudio/startPreview';
 
 // ============================================================================
 // TYPES
@@ -405,6 +406,12 @@ export function useStream(channelId?: string) {
   const getOrCreateVideoElement = useCallback((streamId: string, stream: MediaStream): HTMLVideoElement => {
     let video = videoElementsRef.current.get(streamId);
     
+    // If video element exists and is ready, use it
+    if (video && video.srcObject === stream) {
+      return video;
+    }
+    
+    // Create new video element only if necessary
     if (!video) {
       video = document.createElement('video');
       video.autoplay = true;
@@ -413,15 +420,12 @@ export function useStream(channelId?: string) {
       videoElementsRef.current.set(streamId, video);
     }
     
+    // Update source if changed
     if (video.srcObject !== stream) {
       video.srcObject = stream;
-      
-      // Wait for video metadata to load before rendering
-      video.onloadedmetadata = () => {
-        video.play().catch(err => {
-          console.warn('Video autoplay failed:', err);
-        });
-      };
+      video.play().catch(err => {
+        console.warn('Video autoplay failed:', err);
+      });
     }
     
     return video;
@@ -580,27 +584,29 @@ export function useStream(channelId?: string) {
       setStatus('preview');
       initAudioMixer();
       
-      let camStream = cameraStream;
-      let micStream = audioStream;
+      // Use bulletproof camera preview function
+      const { videoEl, stream } = await startCameraPreview({
+        cameraId: selectedCamera,
+        micId: selectedMicrophone,
+      });
       
-      // Start camera and mic if not already started
-      if (!camStream && selectedCamera) {
-        console.log('Starting camera:', selectedCamera);
-        camStream = await startCamera(selectedCamera, '1080p', 30);
-        if (camStream) {
-          addAudioSource('camera-audio', camStream, 0); // Camera audio usually not needed
-        }
+      console.log('Camera ready:', stream.id, 'Video size:', videoEl.videoWidth, 'x', videoEl.videoHeight);
+      
+      // Store streams
+      setCameraStream(stream);
+      const videoTrack = stream.getVideoTracks()[0];
+      const audioTracks = stream.getAudioTracks();
+      
+      if (audioTracks.length > 0) {
+        const audioStream = new MediaStream([audioTracks[0]]);
+        setAudioStream(audioStream);
+        addAudioSource('microphone', audioStream, 1.0);
       }
       
-      if (!micStream && selectedMicrophone) {
-        console.log('Starting microphone:', selectedMicrophone);
-        micStream = await startMicrophone(selectedMicrophone);
-        if (micStream) {
-          addAudioSource('microphone', micStream, 1.0);
-        }
-      }
+      // Store video element for rendering
+      videoElementsRef.current.set('camera-source', videoEl);
       
-      // Create default scene if none exist and add sources
+      // Create default scene if none exist
       let activeScene = scenes.find(s => s.id === activeSceneId);
       if (!activeScene) {
         console.log('Creating default scene');
@@ -608,8 +614,8 @@ export function useStream(channelId?: string) {
         activeScene = newScene;
       }
       
-      // Add camera and mic to active scene if not already added
-      if (activeScene && camStream) {
+      // Add camera to scene
+      if (activeScene) {
         const hasCameraSource = activeScene.sources.some(s => s.type === 'camera');
         if (!hasCameraSource) {
           console.log('Adding camera to scene');
@@ -618,24 +624,21 @@ export function useStream(channelId?: string) {
             type: 'camera',
             label: 'Camera',
             enabled: true,
-            stream: camStream,
+            stream: stream,
             volume: 1.0
           });
         }
       }
       
-      // Start canvas rendering
+      // Start canvas rendering ONLY after video is ready
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
       
-      console.log('Starting render loop');
+      console.log('Starting render loop with verified video');
       renderFrame();
       
-      // Keep status as preview after render starts
-      setTimeout(() => {
-        setStatus('preview');
-      }, 100);
+      setStatus('preview');
       
     } catch (error) {
       console.error('Failed to start preview:', error);
@@ -643,13 +646,9 @@ export function useStream(channelId?: string) {
     }
   }, [
     selectedCamera, 
-    selectedMicrophone, 
-    cameraStream, 
-    audioStream,
+    selectedMicrophone,
     scenes,
     activeSceneId,
-    startCamera, 
-    startMicrophone, 
     initAudioMixer, 
     addAudioSource,
     createScene,
