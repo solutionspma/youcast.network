@@ -420,58 +420,6 @@ export function useStream(channelId?: string) {
     return video;
   }, []);
   
-  const renderFrame = useCallback(() => {
-    if (!compositorRef.current || !canvasRef.current) {
-      animationFrameRef.current = requestAnimationFrame(renderFrame);
-      return;
-    }
-    
-    const ctx = compositorRef.current;
-    const canvas = canvasRef.current;
-    
-    // Clear canvas with black background
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Get active scene
-    const activeScene = scenes.find(s => s.id === activeSceneId);
-    if (!activeScene || activeScene.sources.length === 0) {
-      // Debug: No scene or sources
-      ctx.fillStyle = '#FF0000';
-      ctx.font = '48px Arial';
-      ctx.fillText('No Scene or Sources', 50, 100);
-      animationFrameRef.current = requestAnimationFrame(renderFrame);
-      return;
-    }
-    
-    // Debug: Show scene info
-    const enabledSources = activeScene.sources.filter(s => s.enabled);
-    if (enabledSources.length === 0) {
-      ctx.fillStyle = '#FFFF00';
-      ctx.font = '48px Arial';
-      ctx.fillText('No Enabled Sources', 50, 100);
-    }
-    
-    // Render sources based on layout
-    try {
-      switch (activeScene.layout) {
-        case 'fullscreen':
-          renderFullscreen(ctx, canvas, activeScene.sources);
-          break;
-        case 'pip':
-          renderPictureInPicture(ctx, canvas, activeScene.sources);
-          break;
-        case 'sidebyside':
-          renderSideBySide(ctx, canvas, activeScene.sources);
-          break;
-      }
-    } catch (error) {
-      console.error('Render error:', error);
-    }
-    
-    animationFrameRef.current = requestAnimationFrame(renderFrame);
-  }, [scenes, activeSceneId, renderFullscreen, renderPictureInPicture, renderSideBySide]);
-  
   const renderFullscreen = useCallback((ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, sources: StreamSource[]) => {
     // Priority: screen > camera > other
     const primarySource = sources.find(s => s.enabled && s.type === 'screen') || 
@@ -561,6 +509,58 @@ export function useStream(channelId?: string) {
       }
     });
   }, [getOrCreateVideoElement]);
+  
+  const renderFrame = useCallback(() => {
+    if (!compositorRef.current || !canvasRef.current) {
+      animationFrameRef.current = requestAnimationFrame(renderFrame);
+      return;
+    }
+    
+    const ctx = compositorRef.current;
+    const canvas = canvasRef.current;
+    
+    // Clear canvas with black background
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Get active scene
+    const activeScene = scenes.find(s => s.id === activeSceneId);
+    if (!activeScene || activeScene.sources.length === 0) {
+      // Debug: No scene or sources
+      ctx.fillStyle = '#FF0000';
+      ctx.font = '48px Arial';
+      ctx.fillText('No Scene or Sources', 50, 100);
+      animationFrameRef.current = requestAnimationFrame(renderFrame);
+      return;
+    }
+    
+    // Debug: Show scene info
+    const enabledSources = activeScene.sources.filter(s => s.enabled);
+    if (enabledSources.length === 0) {
+      ctx.fillStyle = '#FFFF00';
+      ctx.font = '48px Arial';
+      ctx.fillText('No Enabled Sources', 50, 100);
+    }
+    
+    // Render sources based on layout
+    try {
+      switch (activeScene.layout) {
+        case 'fullscreen':
+          renderFullscreen(ctx, canvas, activeScene.sources);
+          break;
+        case 'pip':
+          renderPictureInPicture(ctx, canvas, activeScene.sources);
+          break;
+        case 'sidebyside':
+          renderSideBySide(ctx, canvas, activeScene.sources);
+          break;
+      }
+    } catch (error) {
+      console.error('Render error:', error);
+    }
+    
+    animationFrameRef.current = requestAnimationFrame(renderFrame);
+  }, [scenes, activeSceneId, renderFullscreen, renderPictureInPicture, renderSideBySide]);
   
   // ============================================================================
   // STREAMING (WebRTC Core)
