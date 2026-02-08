@@ -14,22 +14,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-brand-600 hover:bg-brand-700 text-white shadow-lg shadow-brand-600/25 active:bg-brand-800',
+    'bg-brand-500 hover:bg-brand-400 text-white active:bg-brand-600 shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30',
   secondary:
-    'bg-surface-700 hover:bg-surface-600 text-white border border-surface-600',
+    'bg-surface-800 hover:bg-surface-700 text-white border border-surface-700 hover:border-surface-600',
   ghost:
-    'bg-transparent hover:bg-surface-800 text-surface-300 hover:text-white',
+    'bg-transparent hover:bg-surface-800/50 text-surface-400 hover:text-white',
   danger:
-    'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/25',
+    'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/20',
   outline:
-    'bg-transparent border border-surface-500 text-surface-300 hover:bg-surface-800 hover:text-white hover:border-surface-400',
+    'bg-transparent border border-surface-700 text-surface-300 hover:bg-surface-800/50 hover:text-white hover:border-surface-500',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-sm rounded-lg',
+  sm: 'px-3.5 py-1.5 text-[13px] rounded-lg',
   md: 'px-4 py-2 text-sm rounded-lg',
-  lg: 'px-6 py-2.5 text-base rounded-xl',
-  xl: 'px-8 py-3.5 text-lg rounded-xl',
+  lg: 'px-6 py-2.5 text-sm rounded-xl',
+  xl: 'px-7 py-3 text-base rounded-xl',
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -53,10 +53,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || isLoading}
         className={`
-          inline-flex items-center justify-center gap-2 font-medium
+          inline-flex items-center justify-center gap-2 font-medium font-display
           transition-all duration-200 ease-out
-          focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:ring-offset-2 focus:ring-offset-surface-900
-          disabled:opacity-50 disabled:cursor-not-allowed
+          focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-2 focus:ring-offset-surface-950
+          disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none
           ${variantClasses[variant]}
           ${sizeClasses[size]}
           ${fullWidth ? 'w-full' : ''}

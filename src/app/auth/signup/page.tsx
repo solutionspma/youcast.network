@@ -33,7 +33,7 @@ export default function SignupPage() {
     <div className="min-h-screen bg-surface-950 flex">
       {/* Left Panel — Branding */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-mesh opacity-30" />
+        <div className="absolute inset-0 bg-grid" />
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 to-surface-950" />
         <div className="relative flex flex-col justify-center px-16">
           <Link href="/" className="flex items-center gap-2.5 mb-12">

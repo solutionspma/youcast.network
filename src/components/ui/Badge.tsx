@@ -10,12 +10,12 @@ interface BadgeProps {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: 'bg-surface-700 text-surface-300',
+  default: 'bg-surface-800 text-surface-400 border border-surface-700/50',
   success: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
   warning: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
   danger: 'bg-red-500/10 text-red-400 border border-red-500/20',
   info: 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20',
-  live: 'bg-red-600 text-white animate-pulse-live',
+  live: 'bg-brand-500 text-white animate-pulse-live',
   brand: 'bg-brand-500/10 text-brand-400 border border-brand-500/20',
 };
 
@@ -39,7 +39,7 @@ export default function Badge({ variant = 'default', size = 'md', children, dot,
   return (
     <span
       className={`
-        inline-flex items-center gap-1.5 font-medium rounded-full whitespace-nowrap
+        inline-flex items-center gap-1.5 font-display font-medium rounded-full whitespace-nowrap
         ${variantClasses[variant]}
         ${sizeClasses[size]}
         ${className}

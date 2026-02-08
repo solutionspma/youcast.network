@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Badge from '@/components/ui/Badge';
-import Card from '@/components/ui/Card';
 
 export const metadata: Metadata = { title: 'Watch' };
 
@@ -23,7 +22,7 @@ const mediaItems = [
 
 function MediaCard({ item }: { item: typeof mediaItems[0] }) {
   return (
-    <Card padding="none" hover variant="default" className="overflow-hidden group">
+    <div className="bg-surface-900 border border-surface-800 rounded-2xl overflow-hidden group card-hover">
       {/* Thumbnail */}
       <div className="relative aspect-video bg-surface-800 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-900/40 to-surface-900/60 flex items-center justify-center">
@@ -46,7 +45,7 @@ function MediaCard({ item }: { item: typeof mediaItems[0] }) {
       {/* Info */}
       <div className="p-4">
         <div className="flex gap-3">
-          <div className="w-9 h-9 rounded-full bg-brand-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-brand-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
             {item.channel[0]}
           </div>
           <div className="min-w-0">
@@ -58,28 +57,33 @@ function MediaCard({ item }: { item: typeof mediaItems[0] }) {
           </div>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
 export default function WatchPage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Watch</h1>
-        <p className="text-surface-400">Discover live streams, videos, and podcasts from the Youcast network.</p>
+      <div className="mb-10">
+        <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-400 mb-4">
+          <span className="w-8 h-px bg-brand-500" />BROWSE
+        </span>
+        <h1 className="text-4xl sm:text-5xl font-display font-bold text-white mb-3">Watch</h1>
+        <p className="text-surface-400 text-lg max-w-xl">
+          Discover live streams, videos, and podcasts from the Youcast network.
+        </p>
       </div>
 
       {/* Category Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-8 scrollbar-hide">
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-10 scrollbar-hide">
         {categories.map((cat, i) => (
           <button
             key={cat}
             className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
               i === 0
-                ? 'bg-brand-600 text-white'
-                : 'bg-surface-800 text-surface-400 hover:bg-surface-700 hover:text-white'
+                ? 'bg-brand-500 text-white'
+                : 'bg-surface-900 border border-surface-800 text-surface-400 hover:bg-surface-800 hover:text-white'
             }`}
           >
             {cat}
@@ -88,8 +92,8 @@ export default function WatchPage() {
       </div>
 
       {/* Live Now Section */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-5">
+      <div className="mb-12">
+        <div className="flex items-center gap-3 mb-6">
           <Badge variant="live" size="md" dot>Live Now</Badge>
           <span className="text-sm text-surface-400">
             {mediaItems.filter((m) => m.isLive).length} streams
@@ -102,9 +106,14 @@ export default function WatchPage() {
         </div>
       </div>
 
-      {/* All Content */}
+      <div className="divider mb-12" />
+
+      {/* Trending */}
       <div>
-        <h2 className="text-xl font-semibold text-white mb-5">Trending</h2>
+        <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-400 mb-4">
+          <span className="w-8 h-px bg-brand-500" />TRENDING
+        </span>
+        <h2 className="text-2xl font-display font-bold text-white mb-6">Trending Now</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {mediaItems.filter((m) => !m.isLive).map((item) => (
             <MediaCard key={item.id} item={item} />

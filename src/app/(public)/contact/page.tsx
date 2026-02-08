@@ -1,11 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { Metadata } from 'next';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 
 const contactReasons = [
   { label: 'Creator Application', value: 'creator' },
@@ -23,13 +20,15 @@ export default function ContactPage() {
     <>
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-mesh opacity-10" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 text-center">
-          <Badge variant="brand" size="lg" className="mb-6">Get in Touch</Badge>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-            Let&apos;s build something <span className="gradient-text">together</span>
+        <div className="absolute inset-0 bg-grid opacity-10" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-400 mb-4">
+            <span className="w-8 h-px bg-brand-500" />GET IN TOUCH
+          </span>
+          <h1 className="text-4xl sm:text-5xl font-display font-bold text-white mb-6 max-w-2xl">
+            Let&apos;s build something together
           </h1>
-          <p className="text-lg text-surface-400 max-w-xl mx-auto">
+          <p className="text-lg text-surface-400 max-w-xl">
             Whether you&apos;re a creator, church, enterprise, or partner — we&apos;re here to help.
           </p>
         </div>
@@ -40,8 +39,8 @@ export default function ContactPage() {
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-10">
           {/* Contact Form */}
           <div className="lg:col-span-3">
-            <Card variant="elevated" padding="lg">
-              <h2 className="text-xl font-bold text-white mb-6">Send us a message</h2>
+            <div className="bg-surface-900 border border-surface-800 rounded-2xl p-6 sm:p-8">
+              <h2 className="text-xl font-display font-bold text-white mb-6">Send us a message</h2>
               <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <Input label="First Name" placeholder="Your first name" />
@@ -56,7 +55,7 @@ export default function ContactPage() {
                   <select
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    className="w-full bg-surface-800 border border-surface-600 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-colors"
+                    className="w-full bg-surface-900 border border-surface-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-colors"
                   >
                     <option value="">Select a reason...</option>
                     {contactReasons.map((r) => (
@@ -71,7 +70,7 @@ export default function ContactPage() {
                   <textarea
                     rows={5}
                     placeholder="Tell us how we can help..."
-                    className="w-full bg-surface-800 border border-surface-600 rounded-lg px-4 py-2.5 text-white text-sm placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-colors resize-none"
+                    className="w-full bg-surface-900 border border-surface-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-colors resize-none"
                   />
                 </div>
 
@@ -79,12 +78,12 @@ export default function ContactPage() {
                   Send Message
                 </Button>
               </form>
-            </Card>
+            </div>
           </div>
 
           {/* Contact Info */}
           <div className="lg:col-span-2 space-y-6">
-            <Card variant="glass">
+            <div className="bg-surface-900 border border-surface-800 rounded-2xl p-6">
               <h3 className="text-white font-semibold mb-3">Quick Contact</h3>
               <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-3 text-surface-300">
@@ -101,23 +100,23 @@ export default function ContactPage() {
                   Austin, TX — Remote-first
                 </div>
               </div>
-            </Card>
+            </div>
 
-            <Card variant="glass">
+            <div className="bg-surface-900 border border-surface-800 rounded-2xl p-6">
               <h3 className="text-white font-semibold mb-3">For Enterprise</h3>
               <p className="text-sm text-surface-400 mb-4">
                 Running a media network or need white-label infrastructure? Our enterprise team can build a custom solution.
               </p>
               <Button variant="outline" size="sm" fullWidth>Schedule a Demo</Button>
-            </Card>
+            </div>
 
-            <Card variant="glass">
+            <div className="bg-surface-900 border border-surface-800 rounded-2xl p-6">
               <h3 className="text-white font-semibold mb-3">Support</h3>
               <p className="text-sm text-surface-400 mb-4">
                 Existing creators can reach our support team directly from the dashboard or via our help center.
               </p>
               <Button variant="ghost" size="sm" fullWidth>Visit Help Center</Button>
-            </Card>
+            </div>
           </div>
         </div>
       </section>

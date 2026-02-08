@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 
 export const metadata: Metadata = { title: 'About' };
 
@@ -31,13 +29,15 @@ export default function AboutPage() {
     <>
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-mesh opacity-10" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 text-center">
-          <Badge variant="brand" size="lg" className="mb-6">About Youcast</Badge>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-6 leading-tight">
-            We&apos;re building the media platform <span className="gradient-text">creators deserve</span>
+        <div className="absolute inset-0 bg-grid opacity-10" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-400 mb-4">
+            <span className="w-8 h-px bg-brand-500" />ABOUT YOUCAST
+          </span>
+          <h1 className="text-4xl sm:text-5xl font-display font-bold text-white mb-6 leading-tight max-w-3xl">
+            We&apos;re building the media platform creators deserve
           </h1>
-          <p className="text-lg text-surface-400 max-w-2xl mx-auto">
+          <p className="text-lg text-surface-400 max-w-2xl">
             Youcast exists because creators shouldn&apos;t have to choose between reach and ownership. We&apos;re building infrastructure that puts creators in control of their content, their audience, and their revenue.
           </p>
         </div>
@@ -46,13 +46,19 @@ export default function AboutPage() {
       {/* Values */}
       <section className="section-padding bg-surface-900/50">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-white mb-10 text-center">Our Values</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {values.map((v) => (
-              <Card key={v.title} variant="glass">
+          <div className="mb-10">
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-400 mb-4">
+              <span className="w-8 h-px bg-brand-500" />OUR VALUES
+            </span>
+            <h2 className="text-3xl font-display font-bold text-white">What we stand for</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl">
+            {values.map((v, i) => (
+              <div key={v.title} className="bg-surface-900 border border-surface-800 rounded-2xl p-6">
+                <span className="text-sm font-display font-bold text-brand-500/40 mb-3 block">0{i + 1}</span>
                 <h3 className="text-lg font-semibold text-white mb-2">{v.title}</h3>
                 <p className="text-sm text-surface-400 leading-relaxed">{v.desc}</p>
-              </Card>
+              </div>
             ))}
           </div>
         </div>
@@ -61,7 +67,12 @@ export default function AboutPage() {
       {/* Timeline */}
       <section className="section-padding">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-white mb-10 text-center">Our Journey</h2>
+          <div className="mb-10">
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-400 mb-4">
+              <span className="w-8 h-px bg-brand-500" />OUR JOURNEY
+            </span>
+            <h2 className="text-3xl font-display font-bold text-white">The road so far</h2>
+          </div>
           <div className="space-y-0">
             {timeline.map((item, i) => (
               <div key={i} className="flex gap-6">
@@ -70,7 +81,7 @@ export default function AboutPage() {
                   {i < timeline.length - 1 && <div className="w-px flex-1 bg-surface-700" />}
                 </div>
                 <div className="pb-8">
-                  <span className="text-sm font-semibold text-brand-400">{item.year}</span>
+                  <span className="text-sm font-display font-semibold text-brand-400">{item.year}</span>
                   <p className="text-surface-300 mt-1">{item.event}</p>
                 </div>
               </div>
@@ -81,16 +92,21 @@ export default function AboutPage() {
 
       {/* Team */}
       <section className="section-padding bg-surface-900/50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-white mb-4 text-center">Our Team</h2>
-          <p className="text-surface-400 text-center mb-10">40 people across engineering, product, operations, and creator success.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-10">
+            <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-400 mb-4">
+              <span className="w-8 h-px bg-brand-500" />OUR TEAM
+            </span>
+            <h2 className="text-3xl font-display font-bold text-white mb-2">The people behind Youcast</h2>
+            <p className="text-surface-400">40 people across engineering, product, operations, and creator success.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-4xl">
             {team.map((dept) => (
-              <Card key={dept.name} variant="default" className="text-center">
-                <div className="text-3xl font-bold text-white mb-1">{dept.count}</div>
+              <div key={dept.name} className="bg-surface-900 border border-surface-800 rounded-2xl p-6 text-center">
+                <div className="text-3xl font-display font-bold text-white mb-1">{dept.count}</div>
                 <h3 className="text-sm font-semibold text-brand-400 mb-2">{dept.name}</h3>
                 <p className="text-xs text-surface-400">{dept.focus}</p>
-              </Card>
+              </div>
             ))}
           </div>
         </div>
