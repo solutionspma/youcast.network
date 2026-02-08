@@ -1,118 +1,95 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import StreamPreview from '@/components/stream/StreamPreview';
-import InputManager from '@/components/stream/InputManager';
-import SceneSwitcher from '@/components/stream/SceneSwitcher';
-import AudioMixer from '@/components/stream/AudioMixer';
-import OverlayEditor from '@/components/stream/OverlayEditor';
-import StreamControls from '@/components/stream/StreamControls';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useStream } from '@/hooks/useStream';
+import { createClient } from '@/lib/supabase/client';
 import StreamChat from '@/components/stream/StreamChat';
 import Badge from '@/components/ui/Badge';
 
-// ——— Mock Data ———
-type MockInput = { id: string; name: string; type: 'camera' | 'screen' | 'audio' | 'media'; status: 'active' | 'inactive' | 'error' };
+// ============================================================================
+// TYPES
+// ============================================================================
 
-const initialInputs: MockInput[] = [
-  { id: 'cam-1', name: 'Main Camera', type: 'camera', status: 'active' },
-  { id: 'cam-2', name: 'Wide Angle', type: 'camera', status: 'inactive' },
-  { id: 'screen-1', name: 'Screen Share', type: 'screen', status: 'inactive' },
-  { id: 'audio-1', name: 'USB Microphone', type: 'audio', status: 'active' },
-  { id: 'media-1', name: 'Intro Video', type: 'media', status: 'inactive' },
+type LeftPanel = 'devices' | 'scenes' | 'audio';
+type RightPanel = 'chat' | 'stats';
+
+type ChatMessage = {
+  id: string;
+  username: string;
+  message: string;
+  timestamp: string;
+  type: 'message' | 'system' | 'moderator' | 'superchat';
+  amount?: number;
+};
+
+const mockChatMessages: ChatMessage[] = [
+  { id: '1', username: 'ViewerPro', message: 'Great stream! Love the setup 🔥', timestamp: '2m ago', type: 'message' },
+  { id: '2', username: 'System', message: 'Stream started', timestamp: '5m ago', type: 'system' },
 ];
 
-const initialScenes = [
-  { id: 'scene-1', name: 'Main Camera', layout: 'single' as const, sourceCount: 2 },
-  { id: 'scene-2', name: 'Split Screen', layout: 'split' as const, sourceCount: 2 },
-  { id: 'scene-3', name: 'Picture-in-Picture', layout: 'pip' as const, sourceCount: 2 },
-  { id: 'scene-4', name: 'Full Grid', layout: 'grid' as const, sourceCount: 4 },
-  { id: 'scene-5', name: 'Screen + Cam', layout: 'custom' as const, sourceCount: 2 },
-  { id: 'scene-6', name: 'Starting Soon', layout: 'single' as const, sourceCount: 1 },
-];
-
-const initialAudioChannels = [
-  { id: 'mic-1', name: 'USB Microphone', type: 'microphone' as const, level: 75, muted: false, peakLevel: 62 },
-  { id: 'desktop-1', name: 'Desktop Audio', type: 'desktop' as const, level: 50, muted: false, peakLevel: 45 },
-  { id: 'media-1', name: 'Media Player', type: 'media' as const, level: 40, muted: true, peakLevel: 0 },
-  { id: 'music-1', name: 'Background Music', type: 'music' as const, level: 20, muted: false, peakLevel: 18 },
-];
-
-const initialOverlays = [
-  { id: 'lt-1', name: 'Host Name Card', type: 'lower_third' as const, visible: true, position: { x: 10, y: 80 } },
-  { id: 'logo-1', name: 'Youcast Logo', type: 'logo' as const, visible: true, position: { x: 90, y: 5 } },
-  { id: 'ticker-1', name: 'News Ticker', type: 'ticker' as const, visible: false, position: { x: 0, y: 95 } },
-  { id: 'alert-1', name: 'Sub Alerts', type: 'alert' as const, visible: false, position: { x: 50, y: 20 } },
-];
-
-const mockChatMessages = [
-  { id: '1', username: 'ViewerPro', message: 'Great stream! Love the setup 🔥', timestamp: '2m ago', type: 'message' as const },
-  { id: '2', username: 'System', message: 'Stream started', timestamp: '5m ago', type: 'system' as const },
-  { id: '3', username: 'ModeratorX', message: 'Welcome everyone! Remember to follow the rules.', timestamp: '4m ago', type: 'moderator' as const },
-  { id: '4', username: 'SuperFan', message: 'Amazing content as always!', timestamp: '3m ago', type: 'superchat' as const, amount: 10 },
-  { id: '5', username: 'TechGuru', message: 'What mic are you using?', timestamp: '2m ago', type: 'message' as const },
-  { id: '6', username: 'NewViewer', message: 'First time here, this is incredible', timestamp: '1m ago', type: 'message' as const },
-  { id: '7', username: 'StreamLover', message: 'Can you show the overlay setup?', timestamp: '30s ago', type: 'message' as const },
-];
-
-// ——— Active Panel Tabs ———
-type RightPanel = 'chat' | 'overlays';
-type LeftPanel = 'sources' | 'scenes' | 'audio';
+// ============================================================================
+// STREAM STUDIO - Real Device Connections
+// ============================================================================
 
 export default function StreamStudioPage() {
-  // State
-  const [isLive, setIsLive] = useState(false);
-  const [isPreview, setIsPreview] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [activeSceneId, setActiveSceneId] = useState('scene-1');
-  const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
-  const [transitionType, setTransitionType] = useState<'cut' | 'fade' | 'slide' | 'zoom'>('cut');
-  const [inputs, setInputs] = useState(initialInputs);
-  const [audioChannels, setAudioChannels] = useState(initialAudioChannels);
-  const [overlays, setOverlays] = useState(initialOverlays);
-  const [masterVolume, setMasterVolume] = useState(80);
-  const [chatMessages, setChatMessages] = useState(mockChatMessages);
-  const [leftPanel, setLeftPanel] = useState<LeftPanel>('sources');
+  const [channelId, setChannelId] = useState<string>('');
+  const [leftPanel, setLeftPanel] = useState<LeftPanel>('devices');
   const [rightPanel, setRightPanel] = useState<RightPanel>('chat');
-  const [duration, setDuration] = useState('00:00:00');
-
+  const [chatMessages, setChatMessages] = useState(mockChatMessages);
+  
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Initialize Stream Hook with REAL device connections
+  const stream = useStream(channelId);
+  
+  // Get channel ID from user
+  useEffect(() => {
+    const fetchChannel = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: channel } = await supabase
+          .from('channels')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (channel) {
+          setChannelId(channel.id);
+        }
+      }
+    };
+    
+    fetchChannel();
+  }, []);
+  
+  // Initialize canvas when ref is available
+  useEffect(() => {
+    if (canvasRef.current) {
+      stream.initCanvas(canvasRef.current);
+    }
+  }, [stream]);
+  
+  // Format duration
+  const formatDuration = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+  
   // Handlers
-  const handleGoLive = useCallback(() => {
-    setIsConnecting(true);
-    setTimeout(() => {
-      setIsConnecting(false);
-      setIsLive(true);
-      setIsPreview(false);
-    }, 2000);
-  }, []);
-
-  const handleStopStream = useCallback(() => {
-    setIsLive(false);
-  }, []);
-
-  const handleStartPreview = useCallback(() => setIsPreview(true), []);
-  const handleStopPreview = useCallback(() => setIsPreview(false), []);
-
-  const handleSwitchScene = useCallback((id: string) => {
-    setActiveSceneId(id);
-    setPreviewSceneId(null);
-  }, []);
-
-  const handleVolumeChange = useCallback((id: string, level: number) => {
-    setAudioChannels(prev => prev.map(ch => ch.id === id ? { ...ch, level } : ch));
-  }, []);
-
-  const handleMuteToggle = useCallback((id: string) => {
-    setAudioChannels(prev => prev.map(ch => ch.id === id ? { ...ch, muted: !ch.muted, peakLevel: !ch.muted ? 0 : ch.level * 0.8 } : ch));
-  }, []);
-
-  const handleToggleInput = useCallback((id: string) => {
-    setInputs(prev => prev.map(inp => inp.id === id ? { ...inp, status: inp.status === 'active' ? 'inactive' as const : 'active' as const } : inp));
-  }, []);
-
-  const handleToggleOverlay = useCallback((id: string) => {
-    setOverlays(prev => prev.map(o => o.id === id ? { ...o, visible: !o.visible } : o));
-  }, []);
-
+  const handleDeviceChange = (type: 'camera' | 'microphone', deviceId: string) => {
+    if (type === 'camera') {
+      stream.setSelectedCamera(deviceId);
+      stream.startCamera(deviceId);
+    } else {
+      stream.setSelectedMicrophone(deviceId);
+      stream.startMicrophone(deviceId);
+    }
+  };
+  
   const handleSendMessage = useCallback((message: string) => {
     setChatMessages(prev => [...prev, {
       id: `msg-${Date.now()}`,
@@ -122,43 +99,51 @@ export default function StreamStudioPage() {
       type: 'moderator' as const,
     }]);
   }, []);
-
-  const activeScene = initialScenes.find(s => s.id === activeSceneId);
-
+  
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col -m-6 -mt-0">
       {/* Top Bar */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-surface-900 border-b border-surface-700/50">
         <div className="flex items-center gap-3">
           <h1 className="text-sm font-bold text-white">Stream Studio</h1>
-          {isLive && <Badge variant="live" size="sm">LIVE</Badge>}
-          {isPreview && !isLive && <Badge variant="warning" size="sm">PREVIEW</Badge>}
-          {!isLive && !isPreview && <Badge variant="default" size="sm">OFFLINE</Badge>}
+          {stream.status === 'live' && <Badge variant="live" size="sm">LIVE</Badge>}
+          {stream.status === 'preview' && <Badge variant="warning" size="sm">PREVIEW</Badge>}
+          {stream.status === 'offline' && <Badge variant="default" size="sm">OFFLINE</Badge>}
+          {stream.status === 'error' && <Badge variant="danger" size="sm">ERROR</Badge>}
         </div>
         <div className="flex items-center gap-4 text-xs text-surface-400">
-          {isLive && (
+          {stream.status === 'live' && (
             <>
               <span className="flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
-                1,247
+                {stream.viewerCount}
               </span>
-              <span className="font-mono">{duration}</span>
+              <span className="font-mono">{formatDuration(stream.duration)}</span>
+              <span className={`flex items-center gap-1.5 ${
+                stream.streamHealth.networkQuality === 'excellent' ? 'text-green-500' :
+                stream.streamHealth.networkQuality === 'good' ? 'text-yellow-500' :
+                'text-red-500'
+              }`}>
+                {stream.streamHealth.networkQuality === 'excellent' && '●'}
+                {stream.streamHealth.networkQuality === 'good' && '●'}
+                {stream.streamHealth.networkQuality !== 'excellent' && stream.streamHealth.networkQuality !== 'good' && '●'}
+                {stream.streamHealth.fps}fps
+              </span>
             </>
           )}
-          <span className="text-surface-500">youcast.network/live/my-channel</span>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar — Sources / Scenes / Audio */}
-        <div className="w-64 bg-surface-900/80 border-r border-surface-700/50 flex flex-col">
+        {/* Left Sidebar — Devices / Scenes / Audio */}
+        <div className="w-72 bg-surface-900/80 border-r border-surface-700/50 flex flex-col">
           {/* Panel Tabs */}
           <div className="flex border-b border-surface-700/50">
-            {(['sources', 'scenes', 'audio'] as LeftPanel[]).map((tab) => (
+            {(['devices', 'scenes', 'audio'] as LeftPanel[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setLeftPanel(tab)}
@@ -174,75 +159,296 @@ export default function StreamStudioPage() {
           </div>
 
           {/* Panel Content */}
-          <div className="flex-1 overflow-y-auto p-3">
-            {leftPanel === 'sources' && (
-              <InputManager
-                inputs={inputs}
-                onAddInput={() => {}}
-                onRemoveInput={(id) => setInputs(prev => prev.filter(i => i.id !== id))}
-                onToggleInput={handleToggleInput}
-              />
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {/* DEVICES PANEL - Real Hardware */}
+            {leftPanel === 'devices' && (
+              <div className="space-y-4">
+                {/* Camera Selection */}
+                <div>
+                  <label className="block text-xs font-medium text-white mb-2">Camera</label>
+                  <select
+                    value={stream.selectedCamera}
+                    onChange={(e) => handleDeviceChange('camera', e.target.value)}
+                    className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-sm text-white"
+                  >
+                    <option value="">Select Camera</option>
+                    {stream.cameras.map(cam => (
+                      <option key={cam.deviceId} value={cam.deviceId}>{cam.label}</option>
+                    ))}
+                  </select>
+                  {stream.cameraStream && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-green-500">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      Camera Active
+                    </div>
+                  )}
+                </div>
+                
+                {/* Microphone Selection */}
+                <div>
+                  <label className="block text-xs font-medium text-white mb-2">Microphone</label>
+                  <select
+                    value={stream.selectedMicrophone}
+                    onChange={(e) => handleDeviceChange('microphone', e.target.value)}
+                    className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-sm text-white"
+                  >
+                    <option value="">Select Microphone</option>
+                    {stream.microphones.map(mic => (
+                      <option key={mic.deviceId} value={mic.deviceId}>{mic.label}</option>
+                    ))}
+                  </select>
+                  {stream.audioStream && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-green-500">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                      Microphone Active
+                    </div>
+                  )}
+                </div>
+                
+                {/* Screen Share Button */}
+                <div>
+                  <label className="block text-xs font-medium text-white mb-2">Screen Share</label>
+                  {!stream.screenStream ? (
+                    <button
+                      onClick={stream.startScreenShare}
+                      className="w-full px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm transition-colors"
+                    >
+                      Start Screen Share
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs text-green-500">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        Screen Sharing Active
+                      </div>
+                      <button
+                        onClick={stream.stopScreenShare}
+                        className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
+                      >
+                        Stop Screen Share
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Device Info */}
+                <div className="pt-4 border-t border-surface-700">
+                  <p className="text-xs font-medium text-white mb-2">Connected Devices</p>
+                  <div className="space-y-1 text-xs text-surface-400">
+                    <div>Cameras: {stream.cameras.length}</div>
+                    <div>Microphones: {stream.microphones.length}</div>
+                    <div>Speakers: {stream.speakers.length}</div>
+                  </div>
+                </div>
+              </div>
             )}
+            
+            {/* SCENES PANEL */}
             {leftPanel === 'scenes' && (
-              <SceneSwitcher
-                scenes={initialScenes}
-                activeSceneId={activeSceneId}
-                previewSceneId={previewSceneId}
-                onSwitchScene={handleSwitchScene}
-                onPreviewScene={setPreviewSceneId}
-                onAddScene={() => {}}
-                transitionType={transitionType}
-                onTransitionChange={setTransitionType}
-              />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-medium text-white">Scenes</h3>
+                  <button
+                    onClick={() => stream.createScene(`Scene ${stream.scenes.length + 1}`, 'fullscreen')}
+                    className="px-2 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded text-xs transition-colors"
+                  >
+                    + New
+                  </button>
+                </div>
+                
+                {stream.scenes.map(scene => (
+                  <div
+                    key={scene.id}
+                    onClick={() => stream.switchScene(scene.id)}
+                    className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                      scene.isActive
+                        ? 'bg-brand-600/20 border-brand-500'
+                        : 'bg-surface-800 border-surface-700 hover:border-surface-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-white">{scene.name}</span>
+                      {scene.isActive && (
+                        <Badge variant="success" size="sm">ACTIVE</Badge>
+                      )}
+                    </div>
+                    <div className="mt-1 text-xs text-surface-400 capitalize">
+                      {scene.layout} • {scene.sources.length} sources
+                    </div>
+                  </div>
+                ))}
+                
+                {stream.scenes.length === 0 && (
+                  <div className="text-center py-8 text-sm text-surface-500">
+                    No scenes yet. Click "+ New" to create one.
+                  </div>
+                )}
+              </div>
             )}
+            
+            {/* AUDIO PANEL */}
             {leftPanel === 'audio' && (
-              <AudioMixer
-                channels={audioChannels}
-                onVolumeChange={handleVolumeChange}
-                onMuteToggle={handleMuteToggle}
-                masterVolume={masterVolume}
-                onMasterVolumeChange={setMasterVolume}
-              />
+              <div className="space-y-4">
+                <h3 className="text-xs font-medium text-white">Audio Mixer</h3>
+                
+                {/* Camera Audio */}
+                {stream.cameraStream && (
+                  <div>
+                    <label className="text-xs text-surface-300 mb-1 block">Camera Audio</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      defaultValue="0"
+                      onChange={(e) => stream.setAudioVolume('camera-audio', parseInt(e.target.value) / 100)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                
+                {/* Microphone Audio */}
+                {stream.audioStream && (
+                  <div>
+                    <label className="text-xs text-surface-300 mb-1 block">Microphone</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      defaultValue="100"
+                      onChange={(e) => stream.setAudioVolume('microphone', parseInt(e.target.value) / 100)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                
+                {/* Screen Audio */}
+                {stream.screenStream && (
+                  <div>
+                    <label className="text-xs text-surface-300 mb-1 block">Screen Audio</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      defaultValue="50"
+                      onChange={(e) => stream.setAudioVolume('screen-audio', parseInt(e.target.value) / 100)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                
+                {!stream.audioStream && !stream.cameraStream && !stream.screenStream && (
+                  <div className="text-center py-8 text-sm text-surface-500">
+                    No audio sources active
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
 
         {/* Center — Preview + Controls */}
         <div className="flex-1 flex flex-col bg-surface-950 p-4 overflow-y-auto">
-          {/* Stream Preview */}
+          {/* Canvas Preview */}
           <div className="flex-1 flex items-center justify-center">
-            <div className="w-full max-w-4xl">
-              <StreamPreview
-                isLive={isLive}
-                isPreview={isPreview}
-                viewerCount={1247}
-                duration={duration}
-                activeScene={activeScene?.name || 'None'}
-              />
+            <div className="w-full max-w-5xl">
+              <div className="relative bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                <canvas
+                  ref={canvasRef}
+                  className="w-full h-full"
+                  width={1920}
+                  height={1080}
+                />
+                
+                {stream.status === 'offline' && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-surface-900/50">
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">📹</div>
+                      <p className="text-white font-medium">Stream Offline</p>
+                      <p className="text-sm text-surface-400 mt-1">Click "Start Preview" to begin</p>
+                    </div>
+                  </div>
+                )}
+                
+                {stream.status === 'live' && (
+                  <div className="absolute top-4 left-4 flex items-center gap-2">
+                    <span className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-full">
+                      <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                      LIVE
+                    </span>
+                    <span className="px-3 py-1.5 bg-black/50 backdrop-blur-sm text-white text-xs font-mono rounded-full">
+                      {formatDuration(stream.duration)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Stream Health */}
+              {stream.status === 'live' && (
+                <div className="mt-3 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-4 text-surface-400">
+                    <span>Bitrate: {stream.streamHealth.bitrate} kbps</span>
+                    <span>FPS: {stream.streamHealth.fps}</span>
+                    <span>Latency: {stream.streamHealth.latency}ms</span>
+                    <span className={
+                      stream.streamHealth.networkQuality === 'excellent' ? 'text-green-500' :
+                      stream.streamHealth.networkQuality === 'good' ? 'text-yellow-500' :
+                      'text-red-500'
+                    }>
+                      Network: {stream.streamHealth.networkQuality}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Bottom Controls */}
           <div className="mt-4 max-w-md mx-auto w-full">
-            <StreamControls
-              isLive={isLive}
-              isPreview={isPreview}
-              isConnecting={isConnecting}
-              streamHealth={isLive ? 'excellent' : 'offline'}
-              onGoLive={handleGoLive}
-              onStopStream={handleStopStream}
-              onStartPreview={handleStartPreview}
-              onStopPreview={handleStopPreview}
-              onOpenSettings={() => {}}
-            />
+            <div className="flex items-center justify-center gap-2">
+              {stream.status === 'offline' && (
+                <button
+                  onClick={stream.startPreview}
+                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  Start Preview
+                </button>
+              )}
+              
+              {stream.status === 'preview' && (
+                <>
+                  <button
+                    onClick={stream.stopPreview}
+                    className="px-6 py-2.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg font-medium transition-colors"
+                  >
+                    Stop Preview
+                  </button>
+                  <button
+                    onClick={stream.goLive}
+                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors flex items-center gap-2"
+                  >
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                    Go Live
+                  </button>
+                </>
+              )}
+              
+              {stream.status === 'live' && (
+                <button
+                  onClick={stream.stopStream}
+                  className="px-8 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors"
+                >
+                  End Stream
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Right Sidebar — Chat / Overlays */}
+        {/* Right Sidebar — Chat / Stats */}
         <div className="w-80 bg-surface-900/80 border-l border-surface-700/50 flex flex-col">
           {/* Panel Tabs */}
           <div className="flex border-b border-surface-700/50">
-            {(['chat', 'overlays'] as RightPanel[]).map((tab) => (
+            {(['chat', 'stats'] as RightPanel[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setRightPanel(tab)}
@@ -263,19 +469,32 @@ export default function StreamStudioPage() {
               <StreamChat
                 messages={chatMessages}
                 onSendMessage={handleSendMessage}
-                viewerCount={1247}
-                isLive={isLive}
+                viewerCount={stream.viewerCount}
+                isLive={stream.status === 'live'}
               />
             )}
-            {rightPanel === 'overlays' && (
-              <div className="p-3 overflow-y-auto h-full">
-                <OverlayEditor
-                  overlays={overlays}
-                  onToggleOverlay={handleToggleOverlay}
-                  onAddOverlay={() => {}}
-                  onRemoveOverlay={(id) => setOverlays(prev => prev.filter(o => o.id !== id))}
-                  onEditOverlay={() => {}}
-                />
+            {rightPanel === 'stats' && (
+              <div className="p-4 space-y-4 text-sm">
+                <div>
+                  <p className="text-xs font-medium text-surface-400 mb-1">Stream Status</p>
+                  <p className="text-white capitalize">{stream.status}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-surface-400 mb-1">Duration</p>
+                  <p className="text-white font-mono">{formatDuration(stream.duration)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-surface-400 mb-1">Viewers</p>
+                  <p className="text-white">{stream.viewerCount}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-surface-400 mb-1">Resolution</p>
+                  <p className="text-white">{stream.streamHealth.resolution}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-surface-400 mb-1">Active Scenes</p>
+                  <p className="text-white">{stream.scenes.length}</p>
+                </div>
               </div>
             )}
           </div>

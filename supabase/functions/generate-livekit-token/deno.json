@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "livekit-server-sdk": "npm:livekit-server-sdk@1.2.7"
+  },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-env --watch index.ts"
+  }
+}
