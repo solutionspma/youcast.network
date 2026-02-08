@@ -6,16 +6,8 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Tabs from '@/components/ui/Tabs';
 
-const mediaLibrary = [
-  { id: '1', title: 'Sunday Morning Service — Week 42', type: 'Live Stream', status: 'published', views: '8.4K', duration: '2:14:30', size: '4.2 GB', date: 'Feb 7, 2026' },
-  { id: '2', title: 'Behind the Scenes: Studio Tour 2026', type: 'Video', status: 'published', views: '3.2K', duration: '18:42', size: '1.8 GB', date: 'Feb 6, 2026' },
-  { id: '3', title: 'Creator Tips: Multi-Camera Setups', type: 'Video', status: 'published', views: '12.1K', duration: '24:15', size: '2.1 GB', date: 'Feb 4, 2026' },
-  { id: '4', title: 'Midweek Devotional — Episode 128', type: 'Audio', status: 'published', views: '1.8K', duration: '32:00', size: '45 MB', date: 'Feb 3, 2026' },
-  { id: '5', title: 'Easter Special Promo', type: 'Video', status: 'processing', views: '—', duration: '0:45', size: '800 MB', date: 'Feb 7, 2026' },
-  { id: '6', title: 'Interview: Creator Economy in 2026', type: 'Video', status: 'draft', views: '—', duration: '45:20', size: '3.6 GB', date: 'Feb 2, 2026' },
-  { id: '7', title: 'Worship Night Highlights', type: 'Video', status: 'published', views: '5.6K', duration: '8:32', size: '1.2 GB', date: 'Jan 31, 2026' },
-  { id: '8', title: 'Upcoming: Easter Special', type: 'Live Stream', status: 'scheduled', views: '—', duration: '—', size: '—', date: 'Mar 15, 2026' },
-];
+// NO MOCK DATA - Real media from Supabase only
+const mediaLibrary: any[] = [];
 
 const statusColors: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
   published: 'success',
