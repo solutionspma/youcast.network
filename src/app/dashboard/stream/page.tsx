@@ -7,12 +7,15 @@ import StreamChat from '@/components/stream/StreamChat';
 import Badge from '@/components/ui/Badge';
 import { IS_PRODUCTION_DATA } from '@/lib/env';
 import { STREAM_STUDIO_MODE, assertNoExternalReset } from '@/lib/streamStudio/constants';
+import { useLowerThirds } from '@/components/stream/useLowerThirds';
+import { useLowerThirdHotkeys } from '@/components/stream/lower-thirds/useLowerThirdHotkeys';
+import { LowerThirdEditor } from '@/components/stream/lower-thirds/LowerThirdEditor';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type LeftPanel = 'devices' | 'scenes' | 'audio';
+type LeftPanel = 'devices' | 'scenes' | 'audio' | 'graphics';
 type RightPanel = 'chat' | 'stats';
 
 type ChatMessage = {
@@ -47,6 +50,10 @@ export default function StreamStudioPage() {
   
   // Initialize Stream Hook with REAL device connections
   const stream = useStream(channelId);
+  
+  // Lower Thirds System
+  const lowerThirdEngine = useLowerThirds(canvasRef);
+  useLowerThirdHotkeys(lowerThirdEngine);
   
   // Production data verification
   useEffect(() => {
@@ -191,7 +198,7 @@ export default function StreamStudioPage() {
         <div className="w-full md:w-72 bg-surface-900/80 border-r border-surface-700/50 flex flex-col md:max-h-none max-h-48">
           {/* Panel Tabs */}
           <div className="flex border-b border-surface-700/50">
-            {(['devices', 'scenes', 'audio'] as LeftPanel[]).map((tab) => (
+            {(['devices', 'scenes', 'audio', 'graphics'] as LeftPanel[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setLeftPanel(tab)}
@@ -422,10 +429,17 @@ export default function StreamStudioPage() {
                 )}
               </div>
             )}
+            
+            {/* GRAPHICS PANEL - Lower Thirds */}
+            {leftPanel === 'graphics' && (
+              <div className="space-y-4">
+                <LowerThirdEditor engine={lowerThirdEngine} />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Center — Preview + Controls */}
+        {/* Center — Preview + Controls */
         <div className="flex-1 flex flex-col bg-surface-950 p-2 md:p-4 overflow-y-auto">
           {/* Canvas Preview */}
           <div className="flex-1 flex items-center justify-center">
