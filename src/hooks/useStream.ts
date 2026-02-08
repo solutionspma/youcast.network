@@ -583,8 +583,10 @@ export function useStream(channelId?: string) {
           addSourceToScene(activeScene.id, {
             id: 'camera-source',
             type: 'camera',
+            label: 'Camera',
             enabled: true,
-            stream: camStream
+            stream: camStream,
+            volume: 1.0
           });
         }
       }
