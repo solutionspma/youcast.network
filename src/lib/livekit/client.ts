@@ -285,6 +285,9 @@ export async function generateLiveKitToken(
         participantName,
         isPublisher,
       },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
     });
     
     if (error) {
