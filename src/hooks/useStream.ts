@@ -715,12 +715,56 @@ export function useStream(channelId?: string) {
   }, []);
   
   const goLive = useCallback(async () => {
-    if (!canvasRef.current || !audioDestinationRef.current || !channelId) {
-      console.error('Missing canvas, audio destination, or channel ID');
+    if (!canvasRef.current || !audioDestinationRef.current) {
+      console.error('Missing canvas or audio destination');
       return false;
     }
     
     try {
+      // Ensure channel exists before going live
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      let finalChannelId = channelId;
+
+      // If no channelId, try to get or create one
+      if (!finalChannelId) {
+        const { data: existingChannels } = await supabase
+          .from('channels')
+          .select('id')
+          .eq('creator_id', user.id)
+          .limit(1);
+
+        if (existingChannels && existingChannels.length > 0) {
+          finalChannelId = existingChannels[0].id;
+        } else {
+          // Create a new channel automatically
+          const { data: newChannel, error: channelError } = await supabase
+            .from('channels')
+            .insert({
+              creator_id: user.id,
+              name: `${user.email?.split('@')[0] || 'User'}'s Channel`,
+              handle: `${user.id.substring(0, 8)}-channel`,
+              description: 'My streaming channel'
+            })
+            .select('id')
+            .single();
+
+          if (channelError) throw channelError;
+          if (!newChannel) throw new Error('Failed to create channel');
+
+          finalChannelId = newChannel.id;
+        }
+      }
+
+      if (!finalChannelId) {
+        throw new Error('No channel ID available');
+      }
+      
       // Create composite stream from canvas
       const canvasStream = canvasRef.current.captureStream(30);
       const audioTracks = audioDestinationRef.current.stream.getAudioTracks();
@@ -734,17 +778,10 @@ export function useStream(channelId?: string) {
       localStreamRef.current = compositeStream;
       
       // Create stream record in Supabase
-      const supabase = createClient();
-      const { data: user } = await supabase.auth.getUser();
-      
-      if (!user.user) {
-        throw new Error('User not authenticated');
-      }
-      
       const { data: stream, error } = await supabase
         .from('streams')
         .insert({
-          channel_id: channelId,
+          channel_id: finalChannelId,
           title: `Live Stream - ${new Date().toLocaleString()}`,
           status: 'offline' as StreamDBState, // Start as offline, update to live after publish succeeds
           webrtc_room_id: `stream-${Date.now()}`,
@@ -758,7 +795,7 @@ export function useStream(channelId?: string) {
       
       // Generate LiveKit token
       const roomName = `stream-${stream.id}`;
-      const participantName = `broadcaster-${user.user.id}`;
+      const participantName = `broadcaster-${user.id}`;
       const token = await generateLiveKitToken(roomName, participantName, true);
       
       if (!token) {
@@ -789,7 +826,7 @@ export function useStream(channelId?: string) {
       // Start RTMP egress for multi-platform streaming
       try {
         const { startRtmpEgress } = await import('@/lib/livekit/client');
-        const egressResult = await startRtmpEgress(roomName, channelId);
+        const egressResult = await startRtmpEgress(roomName, finalChannelId);
         
         if (egressResult.success) {
           console.log('✅ RTMP egress started:', egressResult.egressIds);
