@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Badge from '@/components/ui/Badge';
-import { createClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = { title: 'Watch' };
 export const revalidate = 30; // Revalidate every 30 seconds
@@ -99,7 +99,6 @@ function StreamCard({ stream }: { stream: StreamItem }) {
 }
 
 function MediaCard({ media }: { media: MediaItem }) {
-function MediaCard({ media }: { media: MediaItem }) {
   return (
     <Link href={`/watch/${media.id}`}>
       <div className="bg-surface-900 border border-surface-800 rounded-2xl overflow-hidden group card-hover">
@@ -143,7 +142,7 @@ function MediaCard({ media }: { media: MediaItem }) {
 }
 
 export default async function WatchPage() {
-  const supabase = await createClient();
+  const supabase = createServerSupabaseClient();
 
   // Fetch live streams
   const { data: liveStreams } = await supabase
@@ -155,7 +154,7 @@ export default async function WatchPage() {
       thumbnail_url,
       viewer_count,
       started_at,
-      channel:channels (
+      channels!inner (
         id,
         name,
         handle,
@@ -177,7 +176,7 @@ export default async function WatchPage() {
       duration,
       views,
       published_at,
-      channel:channels (
+      channels!inner (
         id,
         name,
         handle,
@@ -189,8 +188,16 @@ export default async function WatchPage() {
     .order('published_at', { ascending: false })
     .limit(12);
 
-  const streams = (liveStreams || []) as StreamItem[];
-  const media = (mediaItems || []) as MediaItem[];
+  // Transform data to match expected types
+  const streams: StreamItem[] = (liveStreams || []).map((stream: any) => ({
+    ...stream,
+    channel: stream.channels
+  }));
+
+  const media: MediaItem[] = (mediaItems || []).map((item: any) => ({
+    ...item,
+    channel: item.channels
+  }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
