@@ -1,20 +1,61 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { createClient } from '@/lib/supabase/client';
+
+type Stats = {
+  totalUsers: number;
+  activeCreators: number;
+  totalViews: number;
+  totalRevenue: number;
+};
 
 export default function AdminPage() {
   const [selectedTab, setSelectedTab] = useState<'overview' | 'users' | 'content' | 'settings'>('overview');
-
-  // Real stats from Supabase - placeholder values until connected
-  const stats = {
+  const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
     activeCreators: 0,
     totalViews: 0,
     totalRevenue: 0,
-  };
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStats() {
+      const supabase = createClient();
+
+      // Fetch total users from profiles table
+      const { count: usersCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch active creators (users with channels)
+      const { count: creatorsCount } = await supabase
+        .from('channels')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch total views across all channels
+      const { data: channelsData } = await supabase
+        .from('channels')
+        .select('total_views');
+
+      const totalViews = channelsData?.reduce((sum, channel) => sum + (channel.total_views || 0), 0) || 0;
+
+      setStats({
+        totalUsers: usersCount || 0,
+        activeCreators: creatorsCount || 0,
+        totalViews,
+        totalRevenue: 0, // TODO: Implement when monetization is active
+      });
+
+      setLoading(false);
+    }
+
+    fetchStats();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -64,7 +105,13 @@ export default function AdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <div className="text-2xl font-display font-bold text-white">{stats.totalUsers.toLocaleString()}</div>
+              <div className="text-2xl font-display font-bold text-white">
+                {loading ? (
+                  <span className="animate-pulse text-surface-600">—</span>
+                ) : (
+                  stats.totalUsers.toLocaleString()
+                )}
+              </div>
               <div className="text-xs text-surface-500 mt-1">—</div>
             </Card>
 
@@ -75,7 +122,13 @@ export default function AdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
               </div>
-              <div className="text-2xl font-display font-bold text-white">{stats.activeCreators.toLocaleString()}</div>
+              <div className="text-2xl font-display font-bold text-white">
+                {loading ? (
+                  <span className="animate-pulse text-surface-600">—</span>
+                ) : (
+                  stats.activeCreators.toLocaleString()
+                )}
+              </div>
               <div className="text-xs text-surface-500 mt-1">—</div>
             </Card>
 
@@ -87,7 +140,13 @@ export default function AdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
               </div>
-              <div className="text-2xl font-display font-bold text-white">{stats.totalViews === 0 ? '0' : `${(stats.totalViews / 1000000).toFixed(1)}M`}</div>
+              <div className="text-2xl font-display font-bold text-white">
+                {loading ? (
+                  <span className="animate-pulse text-surface-600">—</span>
+                ) : (
+                  stats.totalViews === 0 ? '0' : `${(stats.totalViews / 1000000).toFixed(1)}M`
+                )}
+              </div>
               <div className="text-xs text-surface-500 mt-1">—</div>
             </Card>
 
@@ -98,7 +157,13 @@ export default function AdminPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div className="text-2xl font-display font-bold text-white">${stats.totalRevenue === 0 ? '0' : `${(stats.totalRevenue / 1000).toFixed(1)}K`}</div>
+              <div className="text-2xl font-display font-bold text-white">
+                {loading ? (
+                  <span className="animate-pulse text-surface-600">—</span>
+                ) : (
+                  stats.totalRevenue === 0 ? '$0' : `$${(stats.totalRevenue / 1000).toFixed(1)}K`
+                )}
+              </div>
               <div className="text-xs text-surface-500 mt-1">—</div>
             </Card>
           </div>
