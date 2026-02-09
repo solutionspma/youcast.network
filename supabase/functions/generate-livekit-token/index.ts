@@ -6,51 +6,99 @@ serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
+      status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
+        'Access-Control-Max-Age': '86400',
       },
     })
   }
 
+  console.log('🔑 LiveKit token request received');
+  
   try {
     // Verify authentication
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.log('❌ Missing authorization header');
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         {
           status: 401,
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
           },
         }
       )
     }
 
+    // Extract token from Bearer header
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    if (!bearerToken) {
+      console.log('❌ Invalid authorization header format');
+      return new Response(
+        JSON.stringify({ error: 'Invalid authorization header format' }),
+        {
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
+          },
+        }
+      )
+    }
+    
+    console.log('🔍 Verifying JWT token...');
+
     // Verify JWT token
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
+      global: { headers: { Authorization: `Bearer ${bearerToken}` } }
     })
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (authError || !user) {
+    if (authError) {
+      console.log('❌ Auth error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Authentication failed' }),
+        {
+          status: 401,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
+          },
+        }
+      )
+    }
+    
+    if (!user) {
+      console.log('❌ No user found');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         {
           status: 401,
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
           },
         }
       )
     }
+    
+    console.log('✅ User authenticated:', user.id);
 
     // Get request body
     const { roomName, participantName, isPublisher = false } = await req.json()
@@ -65,11 +113,15 @@ serve(async (req) => {
           status: 400,
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
           },
         }
       )
     }
+
+    console.log('🎬 Generating token for room:', roomName, 'participant:', participantName, 'publisher:', isPublisher);
 
     // Get LiveKit credentials from environment
     const livekitApiKey = Deno.env.get('LIVEKIT_API_KEY')
@@ -83,20 +135,22 @@ serve(async (req) => {
           status: 500,
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*'
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
           },
         }
       )
     }
 
     // Create access token
-    const token = new AccessToken(livekitApiKey, livekitApiSecret, {
+    const livekitToken = new AccessToken(livekitApiKey, livekitApiSecret, {
       identity: participantName,
       name: participantName,
     })
 
     // Set permissions based on role
-    token.addGrant({
+    livekitToken.addGrant({
       room: roomName,
       roomJoin: true,
       canPublish: isPublisher,
@@ -105,7 +159,7 @@ serve(async (req) => {
     })
 
     // Generate JWT token
-    const jwt = await token.toJwt()
+    const jwt = await livekitToken.toJwt()
 
     return new Response(
       JSON.stringify({ 
@@ -116,7 +170,9 @@ serve(async (req) => {
         status: 200,
         headers: { 
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
         },
       }
     )
@@ -131,7 +187,9 @@ serve(async (req) => {
         status: 500,
         headers: { 
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-requested-with',
         },
       }
     )

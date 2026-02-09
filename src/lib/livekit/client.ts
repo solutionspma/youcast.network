@@ -260,12 +260,19 @@ export async function generateLiveKitToken(
     const supabase = createClient();
     
     // Get current session for authentication
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return null;
+    }
     
     if (!session) {
       console.error('No active session found for token generation');
       return null;
     }
+    
+    console.log('🔑 Generating LiveKit token for room:', roomName, 'participant:', participantName);
     
     // Call Supabase Edge Function to generate token
     // This keeps the API secret secure on the server
@@ -275,13 +282,19 @@ export async function generateLiveKitToken(
         participantName,
         isPublisher,
       },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
     });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Edge function error:', error);
+      return null;
+    }
     
+    if (!data?.token) {
+      console.error('No token returned from edge function');
+      return null;
+    }
+    
+    console.log('✅ LiveKit token generated successfully');
     return data.token;
   } catch (error) {
     console.error('Failed to generate LiveKit token:', error);
