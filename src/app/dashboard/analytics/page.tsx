@@ -202,15 +202,7 @@ export default function AnalyticsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
               <p className="text-sm text-surface-400">Traffic sources</p>
-              <p className="text-xs text-surface-500 mt-1">Available in future update</p> <div className="flex justify-between text-sm mb-1">
-                    <span className="text-surface-400">{s.source}</span>
-                    <span className="text-white font-medium">{s.pct}%</span>
-                  </div>
-                  <div className="h-2 bg-surface-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${s.pct}%` }} />
-                  </div>
-                </div>
-              ))}
+              <p className="text-xs text-surface-500 mt-1">Available in future update</p>
             </div>
           </Card>
         </div>
