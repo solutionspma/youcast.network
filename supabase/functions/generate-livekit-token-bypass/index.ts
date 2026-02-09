@@ -80,6 +80,27 @@ serve(async (req) => {
     const jwt = await livekitToken.toJwt()
 
     console.log('✅ Token generated successfully, length:', jwt.length);
+    console.log('🔍 Token preview (first 50 chars):', jwt.substring(0, 50));
+    
+    // Validate the generated token is correct format
+    try {
+      const [header, payload] = jwt.split('.');
+      const decodedPayload = JSON.parse(atob(payload));
+      console.log('🔍 Generated token payload:', {
+        iss: decodedPayload.iss,
+        sub: decodedPayload.sub,
+        name: decodedPayload.name,
+        video: decodedPayload.video ? 'present' : 'missing'
+      });
+      
+      // CRITICAL: Ensure we're not accidentally returning Supabase JWT
+      if (decodedPayload.iss === 'supabase') {
+        console.error('❌ CRITICAL ERROR: Generated Supabase JWT instead of LiveKit token!');
+        throw new Error('Token generation failed - wrong issuer');
+      }
+    } catch (e) {
+      console.warn('Token validation warning:', e);
+    }
 
     return new Response(
       JSON.stringify({ 

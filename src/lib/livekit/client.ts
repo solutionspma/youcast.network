@@ -296,7 +296,39 @@ export async function generateLiveKitToken(
       return null;
     }
     
+    // Verify this is a LiveKit token, not a Supabase JWT
+    const tokenPreview = data.token.substring(0, 50);
     console.log('✅ LiveKit token generated successfully');
+    console.log('🔍 Token preview (first 50 chars):', tokenPreview);
+    console.log('🔍 Token length:', data.token.length);
+    
+    // Decode JWT header to verify it's a LiveKit token
+    try {
+      const [header] = data.token.split('.');
+      const decodedHeader = JSON.parse(atob(header));
+      console.log('🔍 JWT Header:', decodedHeader);
+      
+      const [, payload] = data.token.split('.');
+      const decodedPayload = JSON.parse(atob(payload));
+      console.log('🔍 JWT Payload excerpt:', {
+        iss: decodedPayload.iss,
+        sub: decodedPayload.sub,
+        name: decodedPayload.name,
+        video: decodedPayload.video ? 'present' : 'missing'
+      });
+      
+      // CRITICAL: Verify this is a LiveKit token, not Supabase
+      if (decodedPayload.iss === 'supabase') {
+        console.error('❌ ERROR: Received Supabase JWT instead of LiveKit token!');
+        console.error('This will fail when connecting to LiveKit');
+        return null;
+      }
+      
+      console.log('✅ Verified: This is a proper LiveKit token');
+    } catch (e) {
+      console.warn('Could not decode token for verification:', e);
+    }
+    
     return data.token;
   } catch (error) {
     console.error('Failed to generate LiveKit token:', error);
