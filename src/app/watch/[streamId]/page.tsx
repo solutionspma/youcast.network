@@ -194,8 +194,24 @@ export default function WatchStreamPage() {
           
           // Attach video track to video element
           if (track.kind === 'video' && videoRef.current) {
-            const videoTrack = track as any; // LiveKit track type
-            videoTrack.attach(videoRef.current);
+            try {
+              // Use attach() method from LiveKit SDK
+              (track as any).attach(videoRef.current);
+              console.log('✅ Video track attached to element');
+            } catch (err) {
+              console.error('❌ Failed to attach video track:', err);
+              // Fallback: use srcObject
+              try {
+                const mediaStreamTrack = (track as any).mediaStreamTrack;
+                if (mediaStreamTrack) {
+                  videoRef.current.srcObject = new MediaStream([mediaStreamTrack]);
+                  videoRef.current.play().catch(e => console.error('Video play error:', e));
+                  console.log('✅ Video track attached via srcObject');
+                }
+              } catch (fallbackErr) {
+                console.error('❌ Fallback attach failed:', fallbackErr);
+              }
+            }
           }
           
           // Audio tracks auto-play in browser
