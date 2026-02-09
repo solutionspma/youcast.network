@@ -233,7 +233,7 @@ export default function WatchStreamPage() {
       try {
         await navigator.share({
           title: stream.title,
-          text: `Watch ${stream.channel.display_name} live!`,
+          text: `Watch ${stream.channel.name} live!`,
           url,
         });
         analytics.trackShare(streamId, 'native');
