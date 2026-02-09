@@ -398,16 +398,13 @@ function BentoFeatures() {
 }
 
 // ─── Featured Creators ───────────────────────────────────────────────
-const featuredCreators = [
-  { name: 'Elevation Studios', category: 'Church Media', subscribers: '125K', color: 'bg-brand-500' },
-  { name: 'Devstream', category: 'Tech', subscribers: '89K', color: 'bg-violet-500' },
-  { name: 'The Daily Brief', category: 'News', subscribers: '340K', color: 'bg-cyan-500' },
-  { name: 'MindFlow Podcast', category: 'Wellness', subscribers: '67K', color: 'bg-emerald-500' },
-  { name: 'GameVault', category: 'Gaming', subscribers: '210K', color: 'bg-orange-500' },
-  { name: 'Creator Lab', category: 'Education', subscribers: '155K', color: 'bg-yellow-500' },
-];
+// Dynamic featured creators - will be populated from database in future
+const featuredCreators: Array<{ name: string; category: string; subscribers: string; color: string }> = [];
 
 function FeaturedCreators() {
+  // Hide section if no featured creators
+  if (featuredCreators.length === 0) return null;
+
   return (
     <section className="section-padding relative">
       <div className="absolute inset-0 bg-dots" />
