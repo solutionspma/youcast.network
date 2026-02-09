@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveKit Token Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #60a5fa;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #64748b;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #0f172a;
+            border-radius: 6px;
+            border: 1px solid #334155;
+        }
+        .success {
+            border-color: #10b981;
+            background: #064e3b;
+        }
+        .error {
+            border-color: #ef4444;
+            background: #7f1d1d;
+        }
+        .token-preview {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            padding: 12px;
+            background: #000;
+            border-radius: 4px;
+            margin-top: 10px;
+            color: #22c55e;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status.ok {
+            background: #10b981;
+            color: white;
+        }
+        .status.fail {
+            background: #ef4444;
+            color: white;
+        }
+        .info-box {
+            background: #1e40af;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 30px;
+            border-left: 4px solid #60a5fa;
+        }
+        pre {
+            background: #000;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+            color: #22c55e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 LiveKit Token Generation Test</h1>
+        
+        <div class="info-box">
+            <strong>⚠️ IMPORTANT:</strong> This is a test page to verify your LiveKit token generation is working correctly. 
+            It will call your bypass Edge Function and show you the token that's generated.
+        </div>
+
+        <div class="form-group">
+            <label for="roomName">Room Name</label>
+            <input type="text" id="roomName" value="test-room-123" placeholder="Enter room name">
+        </div>
+
+        <div class="form-group">
+            <label for="participantName">Participant Name</label>
+            <input type="text" id="participantName" value="test-broadcaster" placeholder="Enter participant name">
+        </div>
+
+        <button onclick="testTokenGeneration()" id="testBtn">🔑 Generate Token</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+
+        const SUPABASE_URL = 'https://ysuueuhnqvpmvixeyban.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzdXVldWhucXZwbXZpeGV5YmFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NTI5MTIsImV4cCI6MjA4NjEyODkxMn0.5j9yVEBzhWlZVhNzYtpDPfoNI5S_JWS7a8OnLJO9BFg'
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        window.testTokenGeneration = async function() {
+            const btn = document.getElementById('testBtn')
+            const resultDiv = document.getElementById('result')
+            const roomName = document.getElementById('roomName').value
+            const participantName = document.getElementById('participantName').value
+
+            if (!roomName || !participantName) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Error</h3>
+                        <p>Please enter both room name and participant name</p>
+                    </div>
+                `
+                return
+            }
+
+            btn.disabled = true
+            btn.textContent = '⏳ Generating...'
+            
+            resultDiv.innerHTML = `
+                <div class="result">
+                    <p>Calling Edge Function...</p>
+                </div>
+            `
+
+            try {
+                console.log('🔑 Calling generate-livekit-token-bypass...')
+                
+                const { data, error } = await supabase.functions.invoke('generate-livekit-token-bypass', {
+                    body: {
+                        roomName,
+                        participantName,
+                        isPublisher: true
+                    }
+                })
+
+                if (error) {
+                    console.error('Edge Function error:', error)
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>❌ Edge Function Error</h3>
+                            <p>${error.message || JSON.stringify(error)}</p>
+                        </div>
+                    `
+                    return
+                }
+
+                if (!data?.token) {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>❌ No Token Returned</h3>
+                            <p>The Edge Function did not return a token</p>
+                        </div>
+                    `
+                    return
+                }
+
+                // Decode and verify token
+                const [headerB64, payloadB64] = data.token.split('.')
+                const header = JSON.parse(atob(headerB64))
+                const payload = JSON.parse(atob(payloadB64))
+
+                console.log('🔍 Token Header:', header)
+                console.log('🔍 Token Payload:', payload)
+
+                // Check if it's a valid LiveKit token
+                const isLiveKitToken = payload.video && !payload.iss?.includes('supabase')
+                const tokenType = payload.iss === 'supabase' ? 'Supabase JWT' : 'LiveKit Token'
+
+                resultDiv.innerHTML = `
+                    <div class="result ${isLiveKitToken ? 'success' : 'error'}">
+                        <h3>
+                            ${isLiveKitToken ? '✅' : '❌'} Token Generated
+                            <span class="status ${isLiveKitToken ? 'ok' : 'fail'}">${tokenType}</span>
+                        </h3>
+                        
+                        <h4>Token Details:</h4>
+                        <ul>
+                            <li><strong>Length:</strong> ${data.token.length} characters</li>
+                            <li><strong>Issuer:</strong> ${payload.iss || 'N/A'}</li>
+                            <li><strong>Subject:</strong> ${payload.sub || 'N/A'}</li>
+                            <li><strong>Name:</strong> ${payload.name || 'N/A'}</li>
+                            <li><strong>Video Grants:</strong> ${payload.video ? '✅ Present' : '❌ Missing'}</li>
+                            ${payload.video ? `
+                                <li><strong>Room:</strong> ${payload.video.room || 'N/A'}</li>
+                                <li><strong>Can Publish:</strong> ${payload.video.canPublish ? '✅ Yes' : '❌ No'}</li>
+                                <li><strong>Can Subscribe:</strong> ${payload.video.canSubscribe ? '✅ Yes' : '❌ No'}</li>
+                            ` : ''}
+                        </ul>
+
+                        <h4>JWT Header:</h4>
+                        <pre>${JSON.stringify(header, null, 2)}</pre>
+
+                        <h4>JWT Payload:</h4>
+                        <pre>${JSON.stringify(payload, null, 2)}</pre>
+
+                        <h4>Full Token:</h4>
+                        <div class="token-preview">${data.token}</div>
+
+                        ${isLiveKitToken ? `
+                            <h4 style="color: #22c55e; margin-top: 20px;">
+                                ✅ SUCCESS: This is a valid LiveKit token!
+                            </h4>
+                            <p>You can use this token to connect to LiveKit at:</p>
+                            <pre>${data.serverUrl || 'wss://youcast-yxcegry8.livekit.cloud'}</pre>
+                        ` : `
+                            <h4 style="color: #ef4444; margin-top: 20px;">
+                                ❌ ERROR: This is NOT a LiveKit token!
+                            </h4>
+                            <p>The Edge Function returned a Supabase JWT instead of a LiveKit token.</p>
+                            <p>LiveKit will reject this token with "invalid API key" errors.</p>
+                        `}
+                    </div>
+                `
+
+            } catch (error) {
+                console.error('Test error:', error)
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Error</h3>
+                        <p>${error.message}</p>
+                        <pre>${error.stack}</pre>
+                    </div>
+                `
+            } finally {
+                btn.disabled = false
+                btn.textContent = '🔑 Generate Token'
+            }
+        }
+    </script>
+</body>
+</html>

@@ -808,7 +808,10 @@ export function useStream(channelId?: string) {
       // Update stream record from draft to live
       await supabase
         .from('streams')
-        .update({ status: 'live' as StreamDBState })
+        .update({ 
+          status: 'live' as StreamDBState,
+          started_at: new Date().toISOString()
+        })
         .eq('id', stream.id);
       
       // Start duration timer
