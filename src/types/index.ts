@@ -27,7 +27,7 @@ export interface Channel {
   name: string;
   slug: string;
   description: string;
-  avatar_url: string | null;
+  thumbnail_url: string | null;
   banner_url: string | null;
   subscriber_count: number;
   is_verified: boolean;

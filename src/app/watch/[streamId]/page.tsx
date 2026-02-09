@@ -59,7 +59,7 @@ export default function WatchStreamPage() {
             channel:channels (
               handle,
               name,
-              avatar_url,
+              thumbnail_url,
               subscriber_count
             )
           `)
