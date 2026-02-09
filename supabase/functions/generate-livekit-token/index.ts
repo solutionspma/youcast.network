@@ -22,7 +22,7 @@ serve(async (req) => {
     // Verify authentication
     const authHeader = req.headers.get('Authorization')
     console.log('🔍 Auth header present:', !!authHeader);
-    console.log('🔍 Auth header value:', authHeader ? authHeader.substring(0, 20) + '...' : 'null');
+    console.log('🔍 Auth header value:', authHeader ? authHeader.substring(0, 50) + '...' : 'null');
     
     if (!authHeader) {
       console.log('❌ Missing authorization header');
