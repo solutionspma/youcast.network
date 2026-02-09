@@ -64,7 +64,7 @@ export default function MonetizationPage() {
         const { data: channel } = await supabase
           .from('channels')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('creator_id', user.id)
           .single();
         
         if (!channel) return;
