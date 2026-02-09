@@ -21,7 +21,7 @@ type Stream = {
   channel: {
     handle: string;
     name: string;
-    avatar_url: string | null;
+    thumbnail_url: string | null;
     subscriber_count: number;
   };
 };
