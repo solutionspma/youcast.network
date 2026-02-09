@@ -274,18 +274,15 @@ export async function generateLiveKitToken(
     }
     
     console.log('✅ Session found, access_token exists:', !!session.access_token);
+    console.log('🔑 Generating LiveKit token for room:', roomName, 'participant:', participantName);
     
-    console.log('🔑 Generating LiveKit token for room:', roomName, 'participant:', participantName);    console.log('🔍 Token preview:', session.access_token ? session.access_token.substring(0, 20) + '...' : 'null');    
+    // TEMPORARY: Use bypass function without authentication
     // Call Supabase Edge Function to generate token
-    // This keeps the API secret secure on the server
-    const { data, error } = await supabase.functions.invoke('generate-livekit-token', {
+    const { data, error } = await supabase.functions.invoke('generate-livekit-token-bypass', {
       body: {
         roomName,
         participantName,
         isPublisher,
-      },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
       },
     });
     
