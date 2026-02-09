@@ -51,6 +51,7 @@ export default function WatchStreamPage() {
   useEffect(() => {
     const loadStream = async () => {
       try {
+        console.log('🔍 Loading stream:', streamId);
         const { data, error: streamError } = await supabase
           .from('streams')
           .select(`
@@ -65,18 +66,23 @@ export default function WatchStreamPage() {
           .eq('id', streamId)
           .single();
         
-        if (streamError) throw streamError;
+        if (streamError) {
+          console.error('❌ Stream query error:', streamError);
+          throw streamError;
+        }
         
         if (!data) {
+          console.error('❌ Stream not found in database');
           setError('Stream not found');
           return;
         }
         
+        console.log('✅ Stream loaded:', data.title, 'Status:', data.status);
         setStream(data as any);
         
-        // Check if stream is live
+        // Show warning if not live, but still try to connect
         if (data.status !== 'live') {
-          setError('This stream is not currently live');
+          console.warn('⚠️ Stream status:', data.status, '(not live)');
         }
       } catch (err: any) {
         console.error('Error loading stream:', err);
@@ -151,24 +157,29 @@ export default function WatchStreamPage() {
   // ============================================================================
   
   useEffect(() => {
-    if (!stream || stream.status !== 'live') return;
+    if (!stream) return;
     
     const connectToLiveStream = async () => {
       try {
+        console.log('🔌 Connecting to LiveKit room: stream-' + stream.id);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          console.warn('User not authenticated, cannot connect to stream');
+          console.warn('⚠️ User not authenticated');
+          setError('Please sign in to watch');
           return;
         }
         
         // Generate viewer token
         const roomName = `stream-${stream.id}`;
         const participantName = `viewer-${user.id}`;
+        console.log('🎫 Generating token for:', participantName);
         const token = await generateLiveKitToken(roomName, participantName, false);
         
         if (!token) {
           throw new Error('Failed to generate LiveKit token');
         }
+        
+        console.log('✅ Token generated, connecting...');
         
         // Create and connect LiveKit client
         const client = createLiveKitClient();
@@ -192,8 +203,9 @@ export default function WatchStreamPage() {
         
         liveKitClientRef.current = client;
         console.log('✅ Connected to LiveKit stream');
-      } catch (err) {
-        console.error('Failed to connect to LiveKit stream:', err);
+      } catch (err: any) {
+        console.error('❌ LiveKit connection failed:', err);
+        setError(`Connection failed: ${err.message}`);
       }
     };
     
@@ -354,21 +366,24 @@ export default function WatchStreamPage() {
               className="w-full h-full bg-black"
             />
             
-            {stream.status === 'live' && (
-              <div className="absolute top-4 left-4 flex items-center gap-2">
-                <Badge variant="live" size="lg">LIVE</Badge>
-                <span className="px-3 py-1 bg-black/70 backdrop-blur-sm text-white text-sm rounded-full">
-                  {viewerCount} watching
-                </span>
-              </div>
-            )}
+            <div className="absolute top-4 left-4 flex items-center gap-2">
+              {stream.status === 'live' && (
+                <>
+                  <Badge variant="live" size="lg">LIVE</Badge>
+                  <span className="px-3 py-1 bg-black/70 backdrop-blur-sm text-white text-sm rounded-full">
+                    {viewerCount} watching
+                  </span>
+                </>
+              )}
+              {stream.status === 'preview' && <Badge variant="warning" size="lg">PREVIEW</Badge>}
+              {stream.status === 'offline' && <Badge variant="default" size="lg">OFFLINE</Badge>}
+              {stream.status === 'ended' && <Badge variant="default" size="lg">ENDED</Badge>}
+            </div>
             
+            {/* Debug overlay */}
             {stream.status !== 'live' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-                <div className="text-center text-white">
-                  <div className="text-4xl mb-2">📺</div>
-                  <p className="text-lg font-medium">Stream Offline</p>
-                </div>
+              <div className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-sm text-white text-xs px-3 py-2 rounded font-mono">
+                Status: {stream.status} | Room: stream-{stream.id.substring(0, 8)}
               </div>
             )}
           </div>
