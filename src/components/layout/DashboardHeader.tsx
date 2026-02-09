@@ -2,8 +2,10 @@
 
 import Avatar from '@/components/ui/Avatar';
 import DropdownMenu from '@/components/ui/DropdownMenu';
+import { useAuth } from '@/lib/auth/context';
 
 export default function DashboardHeader() {
+  const { signOut } = useAuth();
   return (
     <header className="h-16 bg-surface-900/80 backdrop-blur-xl border-b border-surface-800 flex items-center justify-between px-6 sticky top-0 z-30">
       {/* Search */}
@@ -53,7 +55,7 @@ export default function DashboardHeader() {
             { id: 'profile', label: 'My Profile', onClick: () => {} },
             { id: 'channel', label: 'Channel Settings', onClick: () => {} },
             { id: 'billing', label: 'Billing', onClick: () => {} },
-            { id: 'signout', label: 'Sign Out', danger: true, onClick: () => {} },
+            { id: 'signout', label: 'Sign Out', danger: true, onClick: signOut },
           ]}
         />
       </div>
