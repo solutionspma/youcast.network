@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useRef } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -10,110 +9,11 @@ import Badge from '@/components/ui/Badge';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ProfilePage() {
-  const [displayName, setDisplayName] = useState('');
-  const [bio, setBio] = useState('');
-  const [channelSlug, setChannelSlug] = useState('');
-  const [channelId, setChannelId] = useState('');
+  const [displayName, setDisplayName] = useState('Elevation Studios');
+  const [bio, setBio] = useState('Live worship broadcasts and faith-based content reaching communities worldwide.');
+  const [channelSlug, setChannelSlug] = useState('elevation-studios');
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [subscriberCount, setSubscriberCount] = useState(0);
-  const [totalViews, setTotalViews] = useState(0);
   const bannerInputRef = useRef<HTMLInputElement>(null);
-
-  // Load channel data on mount
-  useEffect(() => {
-    async function loadChannel() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) return;
-
-      try {
-        const { data: channel, error } = await supabase
-          .from('channels')
-          .select('*')
-          .eq('creator_id', user.id)
-          .single();
-
-        if (error) {
-          // If no channel exists, create one
-          if (error.code === 'PGRST116') {
-            const emailPrefix = user.email?.split('@')[0] || 'user';
-            const { data: newChannel, error: createError } = await supabase
-              .from('channels')
-              .insert({
-                creator_id: user.id,
-                name: `${emailPrefix}'s Channel`,
-                handle: `${user.id.substring(0, 8)}-channel`,
-                description: ''
-              })
-              .select()
-              .single();
-
-            if (createError) throw createError;
-            if (newChannel) {
-              setChannelId(newChannel.id);
-              setDisplayName(newChannel.name);
-              setChannelSlug(newChannel.handle);
-              setBio(newChannel.description || '');
-              setSubscriberCount(newChannel.subscriber_count || 0);
-              setTotalViews(newChannel.total_views || 0);
-            }
-          } else {
-            throw error;
-          }
-        } else {
-          setChannelId(channel.id);
-          setDisplayName(channel.name);
-          setChannelSlug(channel.handle);
-          setBio(channel.description || '');
-          setSubscriberCount(channel.subscriber_count || 0);
-          setTotalViews(channel.total_views || 0);
-        }
-      } catch (err) {
-        console.error('Error loading channel:', err);
-        alert('Failed to load channel data');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadChannel();
-  }, []);
-
-  const handleSaveChanges = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!channelId) {
-      alert('Channel not found');
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const supabase = createClient();
-      
-      const { error } = await supabase
-        .from('channels')
-        .update({
-          name: displayName,
-          handle: channelSlug,
-          description: bio
-        })
-        .eq('id', channelId);
-
-      if (error) throw error;
-
-      alert('Profile updated successfully!');
-    } catch (err) {
-      console.error('Error saving profile:', err);
-      alert('Failed to save changes');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleBannerClick = () => {
     bannerInputRef.current?.click();
@@ -180,22 +80,6 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6 max-w-4xl">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Profile & Channel</h1>
-          <p className="text-surface-400 text-sm mt-1">Manage your public profile and channel settings</p>
-        </div>
-        <Card variant="default">
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-400"></div>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
@@ -217,33 +101,30 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-xl font-bold text-white">{displayName || 'Your Channel'}</h2>
+              <h2 className="text-xl font-bold text-white">{displayName}</h2>
+              <Badge variant="success" size="sm" dot>Verified</Badge>
             </div>
             <p className="text-sm text-surface-400 mb-1">@{channelSlug}</p>
-            <p className="text-sm text-surface-400">{subscriberCount} subscribers &middot; {totalViews} total views</p>
+            <p className="text-sm text-surface-400">0 subscribers &middot; 0 total views</p>
           </div>
-          <Link href={`/c/${channelSlug}`} target="_blank">
-            <Button variant="outline" size="sm">View Public Channel</Button>
-          </Link>
+          <Button variant="outline" size="sm">View Public Channel</Button>
         </div>
       </Card>
 
       {/* Edit Form */}
       <Card variant="default">
         <h3 className="text-lg font-semibold text-white mb-6">Edit Profile</h3>
-        <form className="space-y-5" onSubmit={handleSaveChanges}>
+        <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
           <Input
             label="Display Name"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            required
           />
           <Input
-            label="Channel Handle"
+            label="Channel URL"
             value={channelSlug}
-            onChange={(e) => setChannelSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-            hint={`youcast.network/c/${channelSlug}`}
-            required
+            onChange={(e) => setChannelSlug(e.target.value)}
+            hint="youcast.network/@elevation-studios"
           />
           <div>
             <label className="block text-sm font-medium text-surface-300 mb-1.5">Bio</label>
@@ -252,17 +133,14 @@ export default function ProfilePage() {
               onChange={(e) => setBio(e.target.value)}
               rows={4}
               className="w-full bg-surface-800 border border-surface-600 rounded-lg px-4 py-2.5 text-white text-sm placeholder:text-surface-500 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-colors resize-none"
-              placeholder="Tell viewers about your channel..."
             />
           </div>
+          <Input label="Website" placeholder="https://your-website.com" />
+          <Input label="Location" placeholder="City, Country" />
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
-            <Button variant="ghost" type="button" onClick={() => window.location.reload()}>
-              Cancel
-            </Button>
+            <Button type="submit">Save Changes</Button>
+            <Button variant="ghost">Cancel</Button>
           </div>
         </form>
       </Card>

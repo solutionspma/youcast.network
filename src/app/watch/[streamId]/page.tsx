@@ -19,8 +19,8 @@ type Stream = {
   ended_at: string | null;
   thumbnail_url: string | null;
   channel: {
-    username: string;
-    display_name: string;
+    handle: string;
+    name: string;
     avatar_url: string | null;
     subscriber_count: number;
   };
@@ -56,8 +56,8 @@ export default function WatchStreamPage() {
           .select(`
             *,
             channel:channels (
-              username,
-              display_name,
+              handle,
+              name,
               avatar_url,
               subscriber_count
             )
@@ -394,10 +394,10 @@ export default function WatchStreamPage() {
             <div className="flex items-center justify-between p-4 bg-surface-900 rounded-lg">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-brand-600 flex items-center justify-center text-white font-bold">
-                  {stream.channel.display_name[0].toUpperCase()}
+                  {stream.channel.name[0].toUpperCase()}
                 </div>
                 <div>
-                  <p className="font-medium text-white">{stream.channel.display_name}</p>
+                  <p className="font-medium text-white">{stream.channel.name}</p>
                   <p className="text-sm text-surface-400">{stream.channel.subscriber_count} subscribers</p>
                 </div>
               </div>

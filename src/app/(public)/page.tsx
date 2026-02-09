@@ -1,77 +1,9 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { createClient } from '@/lib/supabase/client';
-
-type LiveStream = {
-  id: string;
-  title: string;
-  viewer_count: number;
-  channel: {
-    name: string;
-    handle: string;
-  } | null;
-};
 
 // ─── Hero Section ────────────────────────────────────────────────────
 function Hero() {
-  const [liveStream, setLiveStream] = useState<LiveStream | null>(null);
-  const [totalViewers, setTotalViewers] = useState(0);
-
-  useEffect(() => {
-    async function fetchLiveData() {
-      const supabase = createClient();
-      
-      try {
-        // Fetch a random live stream
-        const { data: streams } = await supabase
-          .from('streams')
-          .select(`
-            id,
-            title,
-            viewer_count,
-            channels!inner(name, handle)
-          `)
-          .eq('status', 'live')
-          .limit(1)
-          .maybeSingle();
-
-        if (streams) {
-          setLiveStream({
-            id: streams.id,
-            title: streams.title,
-            viewer_count: streams.viewer_count,
-            channel: Array.isArray(streams.channels) 
-              ? streams.channels[0] 
-              : streams.channels
-          });
-        }
-
-        // Calculate total viewers today
-        const { data: allStreams } = await supabase
-          .from('streams')
-          .select('viewer_count, peak_viewers')
-          .eq('status', 'live');
-
-        if (allStreams) {
-          const total = allStreams.reduce((sum, s) => sum + (s.peak_viewers || s.viewer_count || 0), 0);
-          setTotalViewers(total);
-        }
-      } catch (error) {
-        console.error('Error fetching live data:', error);
-      }
-    }
-
-    fetchLiveData();
-    const interval = setInterval(fetchLiveData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const channelInitial = liveStream?.channel?.name?.[0] || 'Y';
-
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
       {/* Background layers */}
@@ -141,62 +73,34 @@ function Hero() {
           {/* Right: Visual element — floating broadcast card */}
           <div className="lg:col-span-5 relative hidden lg:block">
             <div className="relative">
-              {liveStream ? (
-                <>
-                  {/* Main card - Real Live Stream */}
-                  <Link href={`/watch/${liveStream.id}`}>
-                    <div className="bg-surface-900 border border-surface-700/50 rounded-2xl overflow-hidden glow-brand-sm cursor-pointer group">
-                      <div className="aspect-video bg-surface-800 relative">
-                        <div className="absolute inset-0 bg-grid opacity-50" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-16 h-16 rounded-full bg-brand-500/20 flex items-center justify-center backdrop-blur-sm border border-brand-500/30 group-hover:bg-brand-500/30 transition-colors">
-                            <svg className="w-7 h-7 text-brand-400 ml-1" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
-                        </div>
-                        {/* Live badge */}
-                        <div className="absolute top-3 left-3 flex items-center gap-2">
-                          <Badge variant="live" dot size="sm">LIVE</Badge>
-                          <span className="text-xs text-surface-300 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
-                            {liveStream.viewer_count || 0} watching
-                          </span>
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-sm font-bold">
-                            {channelInitial}
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-white">{liveStream.channel?.name || 'Unknown Channel'}</div>
-                            <div className="text-xs text-surface-500">@{liveStream.channel?.handle || 'channel'}</div>
-                          </div>
-                        </div>
-                        <div className="text-sm text-surface-400">{liveStream.title}</div>
-                      </div>
-                    </div>
-                  </Link>
-                </>
-              ) : (
-                /* Placeholder when no live streams */
-                <div className="bg-surface-900 border border-surface-700/50 rounded-2xl overflow-hidden">
-                  <div className="aspect-video bg-surface-800 relative">
-                    <div className="absolute inset-0 bg-grid opacity-50" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center">
-                        <svg className="w-12 h-12 text-surface-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        <p className="text-sm text-surface-500">No live streams right now</p>
-                      </div>
+              {/* Main card */}
+              <div className="bg-surface-900 border border-surface-700/50 rounded-2xl overflow-hidden glow-brand-sm">
+                <div className="aspect-video bg-surface-800 relative">
+                  <div className="absolute inset-0 bg-grid opacity-50" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-brand-500/20 flex items-center justify-center backdrop-blur-sm border border-brand-500/30">
+                      <svg className="w-7 h-7 text-brand-400 ml-1" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
                     </div>
                   </div>
-                  <div className="p-4">
-                    <div className="text-sm text-surface-400">Check back soon for live content</div>
+                  {/* Live badge */}
+                  <div className="absolute top-3 left-3 flex items-center gap-2">
+                    <Badge variant="live" dot size="sm">LIVE</Badge>
+                    <span className="text-xs text-surface-300 bg-black/50 backdrop-blur-sm px-2 py-0.5 rounded-full">1,247 watching</span>
                   </div>
                 </div>
-              )}
+                <div className="p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-sm font-bold">E</div>
+                    <div>
+                      <div className="text-sm font-medium text-white">Elevation Studios</div>
+                      <div className="text-xs text-surface-500">Church Media • 125K subs</div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-surface-400">Sunday Morning Worship — Live from Charlotte, NC</div>
+                </div>
+              </div>
 
               {/* Floating overlay card — analytics */}
               <div className="absolute -bottom-6 -left-8 bg-surface-800 border border-surface-700/50 rounded-xl p-3 backdrop-blur-xl animate-float shadow-2xl shadow-black/50">
@@ -204,22 +108,18 @@ function Hero() {
                   <div className="w-2 h-2 rounded-full bg-accent-emerald" />
                   <span className="text-xs font-medium text-surface-300">Viewers Today</span>
                 </div>
-                <div className="text-xl font-display font-bold text-white">
-                  {totalViewers > 0 ? totalViewers.toLocaleString() : '—'}
-                </div>
-                {totalViewers > 0 && (
-                  <div className="text-xs text-accent-emerald">Live now</div>
-                )}
+                <div className="text-xl font-display font-bold text-white">24,891</div>
+                <div className="text-xs text-accent-emerald">+18.2% from yesterday</div>
               </div>
 
-              {/* Floating overlay card — engagement */}
+              {/* Floating overlay card — earnings */}
               <div className="absolute -top-4 -right-6 bg-surface-800 border border-surface-700/50 rounded-xl p-3 backdrop-blur-xl shadow-2xl shadow-black/50" style={{ animationDelay: '3s', animation: 'float 6s ease-in-out infinite' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-2 h-2 rounded-full bg-accent-gold" />
-                  <span className="text-xs font-medium text-surface-300">Platform</span>
+                  <span className="text-xs font-medium text-surface-300">Revenue</span>
                 </div>
-                <div className="text-xl font-display font-bold text-white">Open Beta</div>
-                <div className="text-xs text-accent-gold">Now streaming</div>
+                <div className="text-xl font-display font-bold text-white">$8,420</div>
+                <div className="text-xs text-accent-gold">This month</div>
               </div>
             </div>
           </div>
@@ -398,13 +298,16 @@ function BentoFeatures() {
 }
 
 // ─── Featured Creators ───────────────────────────────────────────────
-// Dynamic featured creators - will be populated from database in future
-const featuredCreators: Array<{ name: string; category: string; subscribers: string; color: string }> = [];
+const featuredCreators = [
+  { name: 'Elevation Studios', category: 'Church Media', subscribers: '125K', color: 'bg-brand-500' },
+  { name: 'Devstream', category: 'Tech', subscribers: '89K', color: 'bg-violet-500' },
+  { name: 'The Daily Brief', category: 'News', subscribers: '340K', color: 'bg-cyan-500' },
+  { name: 'MindFlow Podcast', category: 'Wellness', subscribers: '67K', color: 'bg-emerald-500' },
+  { name: 'GameVault', category: 'Gaming', subscribers: '210K', color: 'bg-orange-500' },
+  { name: 'Creator Lab', category: 'Education', subscribers: '155K', color: 'bg-yellow-500' },
+];
 
 function FeaturedCreators() {
-  // Hide section if no featured creators
-  if (featuredCreators.length === 0) return null;
-
   return (
     <section className="section-padding relative">
       <div className="absolute inset-0 bg-dots" />
