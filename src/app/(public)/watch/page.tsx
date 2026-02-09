@@ -24,11 +24,12 @@ const categories = ['All', 'Live Now', 'Podcasts', 'Worship', 'Tech', 'Gaming', 
 function MediaCard({ stream }: { stream: Stream }) {
   const isLive = stream.status === 'live';
   const channelInitial = stream.channel?.name?.[0] || 'U';
+  const channelHandle = stream.channel?.handle || '';
 
   return (
-    <Link href={`/watch/${stream.id}`}>
-      <div className="bg-surface-900 border border-surface-800 rounded-2xl overflow-hidden group card-hover cursor-pointer">
-        {/* Thumbnail */}
+    <div className="bg-surface-900 border border-surface-800 rounded-2xl overflow-hidden group card-hover cursor-pointer">
+      {/* Thumbnail */}
+      <Link href={`/watch/${stream.id}`}>
         <div className="relative aspect-video bg-surface-800 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-brand-900/40 to-surface-900/60 flex items-center justify-center">
             <svg className="w-12 h-12 text-white/20 group-hover:text-white/40 transition-colors" viewBox="0 0 24 24" fill="currentColor">
@@ -46,26 +47,34 @@ function MediaCard({ stream }: { stream: Stream }) {
             )}
           </div>
         </div>
+      </Link>
 
-        {/* Info */}
-        <div className="p-4">
-          <div className="flex gap-3">
-            <div className="w-9 h-9 rounded-full bg-brand-500 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+      {/* Info */}
+      <div className="p-4">
+        <div className="flex gap-3">
+          <Link href={channelHandle ? `/c/${channelHandle}` : '#'} className="flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-brand-500 flex items-center justify-center text-white font-semibold text-sm hover:ring-2 hover:ring-brand-400 transition-all">
               {channelInitial}
             </div>
-            <div className="min-w-0">
+          </Link>
+          <div className="min-w-0 flex-1">
+            <Link href={`/watch/${stream.id}`}>
               <h3 className="text-sm font-semibold text-white line-clamp-2 leading-snug mb-1 group-hover:text-brand-400 transition-colors">
                 {stream.title}
               </h3>
-              <p className="text-xs text-surface-400 truncate">{stream.channel?.name || 'Unknown Channel'}</p>
-              <p className="text-xs text-surface-500 mt-0.5">
-                {isLive ? `${stream.viewer_count || 0} watching` : 'Ended'}
+            </Link>
+            <Link href={channelHandle ? `/c/${channelHandle}` : '#'}>
+              <p className="text-xs text-surface-400 truncate hover:text-brand-400 transition-colors">
+                {stream.channel?.name || 'Unknown Channel'}
               </p>
-            </div>
+            </Link>
+            <p className="text-xs text-surface-500 mt-0.5">
+              {isLive ? `${stream.viewer_count || 0} watching` : 'Ended'}
+            </p>
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -84,7 +93,7 @@ export default function WatchPage() {
           .from('streams')
           .select(`
             *,
-            channel:channels(id, name, handle)
+            channels!inner(id, name, handle)
           `)
           .in('status', ['live', 'ended'])
           .order('created_at', { ascending: false })
@@ -92,7 +101,13 @@ export default function WatchPage() {
 
         if (error) throw error;
 
-        setStreams((data as Stream[]) || []);
+        // Transform data to handle channel as array
+        const transformedData = data?.map(stream => ({
+          ...stream,
+          channel: Array.isArray(stream.channels) ? stream.channels[0] : stream.channels
+        })) || [];
+
+        setStreams(transformedData as Stream[]);
       } catch (error) {
         console.error('Error fetching streams:', error);
       } finally {
