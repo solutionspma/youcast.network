@@ -269,8 +269,11 @@ export async function generateLiveKitToken(
     
     if (!session) {
       console.error('No active session found for token generation');
+      console.log('Current user state:', await supabase.auth.getUser());
       return null;
     }
+    
+    console.log('✅ Session found, access_token exists:', !!session.access_token);
     
     console.log('🔑 Generating LiveKit token for room:', roomName, 'participant:', participantName);
     
