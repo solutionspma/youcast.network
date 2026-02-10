@@ -6,6 +6,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Tabs from '@/components/ui/Tabs';
+import Link from 'next/link';
 
 type MediaItem = {
   id: string;
@@ -15,6 +16,8 @@ type MediaItem = {
   views: number;
   duration: number | null;
   file_size: number | null;
+  media_url: string | null;
+  thumbnail_url: string | null;
   created_at: string;
 };
 
@@ -178,6 +181,9 @@ function StreamsTable({ items, onDelete, onEmergencyStop }: { items: StreamItem[
 }
 
 function MediaTable({ items }: { items: MediaItem[] }) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+
   const formatDuration = (seconds: number | null) => {
     if (!seconds) return '—';
     const mins = Math.floor(seconds / 60);
@@ -194,6 +200,29 @@ function MediaTable({ items }: { items: MediaItem[] }) {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const handleMouseEnter = (item: MediaItem) => {
+    setHoveredId(item.id);
+    // Auto-play video preview on hover
+    if (item.media_url && item.type === 'video') {
+      const video = videoRefs.current.get(item.id);
+      if (video) {
+        video.currentTime = 0;
+        video.play().catch(() => {});
+      }
+    }
+  };
+
+  const handleMouseLeave = (item: MediaItem) => {
+    setHoveredId(null);
+    if (item.media_url && item.type === 'video') {
+      const video = videoRefs.current.get(item.id);
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
+      }
+    }
   };
 
   if (items.length === 0) {
@@ -222,16 +251,57 @@ function MediaTable({ items }: { items: MediaItem[] }) {
         </thead>
         <tbody className="divide-y divide-surface-700/50">
           {items.map((item) => (
-            <tr key={item.id} className="hover:bg-surface-800/50 transition-colors">
+            <tr 
+              key={item.id} 
+              className="hover:bg-surface-800/50 transition-colors cursor-pointer"
+              onMouseEnter={() => handleMouseEnter(item)}
+              onMouseLeave={() => handleMouseLeave(item)}
+            >
               <td className="px-4 py-3.5">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-8 rounded bg-surface-700 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-surface-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
+                <Link href={`/watch/video/${item.id}`} className="flex items-center gap-3">
+                  <div className="w-20 h-12 rounded bg-surface-700 flex items-center justify-center flex-shrink-0 overflow-hidden relative group">
+                    {item.media_url && item.type === 'video' ? (
+                      <>
+                        {/* Thumbnail or video preview */}
+                        {item.thumbnail_url && hoveredId !== item.id ? (
+                          <img src={item.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <video
+                            ref={(el) => { if (el) videoRefs.current.set(item.id, el); }}
+                            src={item.media_url}
+                            className="w-full h-full object-cover"
+                            muted
+                            loop
+                            playsInline
+                            poster={item.thumbnail_url || undefined}
+                          />
+                        )}
+                        {/* Play button overlay */}
+                        {hoveredId !== item.id && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
+                            <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
+                        )}
+                        {item.duration && (
+                          <span className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                            {formatDuration(item.duration)}
+                          </span>
+                        )}
+                      </>
+                    ) : item.type === 'audio' ? (
+                      <svg className="w-6 h-6 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-surface-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
                   </div>
-                  <span className="text-sm font-medium text-white truncate max-w-[240px]">{item.title}</span>
-                </div>
+                  <span className="text-sm font-medium text-white hover:text-brand-400 truncate max-w-[240px]">{item.title}</span>
+                </Link>
               </td>
               <td className="px-4 py-3.5 text-sm text-surface-400 capitalize">{item.type}</td>
               <td className="px-4 py-3.5">
@@ -242,11 +312,23 @@ function MediaTable({ items }: { items: MediaItem[] }) {
               <td className="px-4 py-3.5 text-sm text-surface-400">{formatFileSize(item.file_size)}</td>
               <td className="px-4 py-3.5 text-sm text-surface-500">{formatDate(item.created_at)}</td>
               <td className="px-4 py-3.5">
-                <button className="p-1 rounded hover:bg-surface-700 text-surface-400 hover:text-white transition-colors">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-1">
+                  <Link 
+                    href={`/watch/video/${item.id}`}
+                    className="p-1.5 rounded hover:bg-surface-700 text-surface-400 hover:text-white transition-colors"
+                    title="Watch video"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </Link>
+                  <button className="p-1.5 rounded hover:bg-surface-700 text-surface-400 hover:text-white transition-colors">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -295,7 +377,7 @@ export default function MediaLibraryPage() {
         // Get media items
         const { data: media } = await supabase
           .from('media')
-          .select('id, title, type, status, views, duration, file_size, created_at')
+          .select('id, title, type, status, views, duration, file_size, media_url, thumbnail_url, created_at')
           .eq('channel_id', channelIdValue)
           .order('created_at', { ascending: false });
 
