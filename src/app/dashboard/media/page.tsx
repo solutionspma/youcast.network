@@ -18,6 +18,17 @@ type MediaItem = {
   created_at: string;
 };
 
+type StreamItem = {
+  id: string;
+  title: string;
+  status: string;
+  viewer_count: number;
+  total_views: number;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+};
+
 const statusColors: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
   ready: 'success',
   published: 'success',
@@ -26,6 +37,99 @@ const statusColors: Record<string, 'success' | 'warning' | 'info' | 'danger' | '
   scheduled: 'info',
   failed: 'danger',
 };
+
+function StreamsTable({ items }: { items: StreamItem[] }) {
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatDuration = (started: string | null, ended: string | null) => {
+    if (!started) return '—';
+    const start = new Date(started);
+    const end = ended ? new Date(ended) : new Date();
+    const diffMs = end.getTime() - start.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  };
+
+  const statusColors: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
+    live: 'danger',
+    ended: 'default',
+    preview: 'warning',
+    offline: 'default',
+  };
+
+  if (items.length === 0) {
+    return (
+      <div className="px-6 py-12 text-center">
+        <p className="text-surface-500 text-sm">No streams yet</p>
+        <p className="text-surface-600 text-xs mt-1">Go live to start building your stream history</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-surface-700">
+            <th className="text-left text-xs font-medium text-surface-500 uppercase tracking-wider px-4 py-3">Title</th>
+            <th className="text-left text-xs font-medium text-surface-500 uppercase tracking-wider px-4 py-3">Status</th>
+            <th className="text-left text-xs font-medium text-surface-500 uppercase tracking-wider px-4 py-3">Peak Viewers</th>
+            <th className="text-left text-xs font-medium text-surface-500 uppercase tracking-wider px-4 py-3">Total Views</th>
+            <th className="text-left text-xs font-medium text-surface-500 uppercase tracking-wider px-4 py-3">Duration</th>
+            <th className="text-left text-xs font-medium text-surface-500 uppercase tracking-wider px-4 py-3">Date</th>
+            <th className="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-surface-700/50">
+          {items.map((item) => (
+            <tr key={item.id} className="hover:bg-surface-800/50 transition-colors">
+              <td className="px-4 py-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-8 rounded bg-surface-700 flex items-center justify-center flex-shrink-0">
+                    {item.status === 'live' ? (
+                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    ) : (
+                      <svg className="w-4 h-4 text-surface-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-white truncate max-w-[240px]">{item.title}</span>
+                </div>
+              </td>
+              <td className="px-4 py-3.5">
+                <Badge variant={statusColors[item.status] ?? 'default'} size="sm">
+                  {item.status === 'live' ? 'LIVE' : item.status}
+                </Badge>
+              </td>
+              <td className="px-4 py-3.5 text-sm text-surface-400">{item.viewer_count.toLocaleString()}</td>
+              <td className="px-4 py-3.5 text-sm text-surface-400">{item.total_views.toLocaleString()}</td>
+              <td className="px-4 py-3.5 text-sm text-surface-400">{formatDuration(item.started_at, item.ended_at)}</td>
+              <td className="px-4 py-3.5 text-sm text-surface-500">{formatDate(item.started_at || item.created_at)}</td>
+              <td className="px-4 py-3.5">
+                <a 
+                  href={`/watch/${item.id}`} 
+                  target="_blank" 
+                  className="p-1 rounded hover:bg-surface-700 text-surface-400 hover:text-white transition-colors inline-block"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function MediaTable({ items }: { items: MediaItem[] }) {
   const formatDuration = (seconds: number | null) => {
@@ -108,6 +212,7 @@ function MediaTable({ items }: { items: MediaItem[] }) {
 
 export default function MediaLibraryPage() {
   const [mediaLibrary, setMediaLibrary] = useState<MediaItem[]>([]);
+  const [streams, setStreams] = useState<StreamItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalSize, setTotalSize] = useState(0);
 
@@ -143,10 +248,21 @@ export default function MediaLibraryPage() {
           .eq('channel_id', channelId)
           .order('created_at', { ascending: false });
 
+        // Get streams
+        const { data: streamData } = await supabase
+          .from('streams')
+          .select('id, title, status, viewer_count, total_views, started_at, ended_at, created_at')
+          .eq('channel_id', channelId)
+          .order('created_at', { ascending: false });
+
         if (media) {
           setMediaLibrary(media);
           const totalBytes = media.reduce((sum, item) => sum + (item.file_size || 0), 0);
           setTotalSize(totalBytes);
+        }
+        
+        if (streamData) {
+          setStreams(streamData);
         }
       } catch (error) {
         console.error('Error fetching media:', error);
@@ -174,13 +290,15 @@ export default function MediaLibraryPage() {
     );
   }
 
+  const totalItems = mediaLibrary.length + streams.length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Media Library</h1>
           <p className="text-surface-400 text-sm mt-1">
-            {mediaLibrary.length} items &middot; {formatStorageSize(totalSize)} GB used
+            {totalItems} items &middot; {streams.length} streams &middot; {formatStorageSize(totalSize)} GB used
           </p>
         </div>
         <div className="flex gap-3">
@@ -202,6 +320,15 @@ export default function MediaLibraryPage() {
       <Tabs
         tabs={[
           {
+            id: 'streams',
+            label: `Live Streams (${streams.length})`,
+            content: (
+              <Card variant="default" padding="none">
+                <StreamsTable items={streams} />
+              </Card>
+            ),
+          },
+          {
             id: 'all',
             label: 'All Media',
             content: (
@@ -216,15 +343,6 @@ export default function MediaLibraryPage() {
             content: (
               <Card variant="default" padding="none">
                 <MediaTable items={mediaLibrary.filter((m) => m.type === 'video')} />
-              </Card>
-            ),
-          },
-          {
-            id: 'streams',
-            label: 'Live Streams',
-            content: (
-              <Card variant="default" padding="none">
-                <MediaTable items={mediaLibrary.filter((m) => m.type === 'stream')} />
               </Card>
             ),
           },
