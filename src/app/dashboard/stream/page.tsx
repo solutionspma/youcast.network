@@ -21,6 +21,8 @@ import '@/styles/pro-mixer.css';
 import CompositionSwitcher from '@/components/stream/CompositionSwitcher';
 import ProSoundboard from '@/components/stream/ProSoundboard';
 import { ParticipantList, CuePanel, RoleBadge } from '@/components/stream/CollaborativeControls';
+import ProAudioMixerFull from '@/components/stream/ProAudioMixerFull';
+import PreviewProgramSwitcher from '@/components/stream/PreviewProgramSwitcher';
 
 // ============================================================================
 // TYPES
@@ -57,6 +59,8 @@ export default function StreamStudioPage() {
   const [cameraFrameRate, setCameraFrameRate] = useState<30 | 60>(30);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [showFullMixer, setShowFullMixer] = useState(false);
+  const [showFullSwitcher, setShowFullSwitcher] = useState(false);
   
   const isInitialMount = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -542,59 +546,59 @@ export default function StreamStudioPage() {
             
             {/* AUDIO PANEL */}
             {leftPanel === 'audio' && (
-              <div className="space-y-4">
-                <h3 className="text-xs font-medium text-white">Audio Mixer</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-medium text-white">🎛️ Audio Mixer</h3>
+                </div>
                 
-                {/* Camera Audio */}
-                {stream.cameraStream && (
-                  <div>
-                    <label className="text-xs text-surface-300 mb-1 block">Camera Audio</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      defaultValue="0"
-                      onChange={(e) => stream.setAudioVolume('camera-audio', parseInt(e.target.value) / 100)}
-                      className="w-full"
-                    />
-                  </div>
-                )}
-                
-                {/* Microphone Audio */}
-                {stream.audioStream && (
-                  <div>
-                    <label className="text-xs text-surface-300 mb-1 block">Microphone</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      defaultValue="100"
-                      onChange={(e) => stream.setAudioVolume('microphone', parseInt(e.target.value) / 100)}
-                      className="w-full"
-                    />
-                  </div>
-                )}
-                
-                {/* Screen Audio */}
-                {stream.screenStream && (
-                  <div>
-                    <label className="text-xs text-surface-300 mb-1 block">Screen Audio</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      defaultValue="50"
-                      onChange={(e) => stream.setAudioVolume('screen-audio', parseInt(e.target.value) / 100)}
-                      className="w-full"
-                    />
-                  </div>
-                )}
-                
-                {!stream.audioStream && !stream.cameraStream && !stream.screenStream && (
-                  <div className="text-center py-8 text-sm text-surface-500">
-                    No audio sources active
-                  </div>
-                )}
+                {/* Quick Controls */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-center">
+                    <span className="block text-lg">🔇</span>
+                    <span className="text-[9px] text-zinc-400">Mute All</span>
+                  </button>
+                  <button className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-center">
+                    <span className="block text-lg">🎧</span>
+                    <span className="text-[9px] text-zinc-400">Monitor</span>
+                  </button>
+                </div>
+
+                {/* Compact Channel List */}
+                <div className="space-y-2">
+                  {[
+                    { name: 'Camera', icon: '📹', level: 75, muted: false },
+                    { name: 'Microphone', icon: '🎙️', level: 85, muted: false },
+                    { name: 'Screen', icon: '🖥️', level: 50, muted: true },
+                    { name: 'Media', icon: '🎵', level: 60, muted: false },
+                  ].map((ch, i) => (
+                    <div key={i} className={`flex items-center gap-2 p-2 rounded-lg ${ch.muted ? 'bg-red-900/20 border border-red-500/30' : 'bg-zinc-800/50'}`}>
+                      <span className="text-sm">{ch.icon}</span>
+                      <span className="text-xs text-white flex-1">{ch.name}</span>
+                      <div className="w-16 h-2 bg-zinc-900 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full ${ch.muted ? 'bg-red-500/50' : 'bg-green-500'}`}
+                          style={{ width: `${ch.level}%` }}
+                        />
+                      </div>
+                      <button className={`w-6 h-6 rounded text-[10px] font-bold ${ch.muted ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-400'}`}>
+                        M
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Full Mixer Link */}
+                <div className="pt-2 border-t border-zinc-800">
+                  <p className="text-[10px] text-zinc-500 text-center mb-2">
+                    Full mixer with EQ, Compression, Gates
+                  </p>
+                  <button 
+                    onClick={() => setShowFullMixer(true)}
+                    className="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-medium rounded-lg"
+                  >
+                    🎛️ Open Full Mixer
+                  </button>
+                </div>
               </div>
             )}
             
@@ -621,8 +625,71 @@ export default function StreamStudioPage() {
             
             {/* COMPOSITIONS PANEL - Scene Switching */}
             {leftPanel === 'compositions' && (
-              <div className="space-y-4">
-                <CompositionSwitcher />
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-medium text-white">🎬 Compositions</h3>
+                </div>
+
+                {/* Preview / Program Mini */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 bg-green-900/20 border border-green-500/50 rounded-lg text-center">
+                    <div className="text-[8px] text-green-400 font-bold mb-1">PREVIEW</div>
+                    <span className="text-2xl">📹</span>
+                    <div className="text-[10px] text-white mt-1">Full Camera</div>
+                  </div>
+                  <div className="p-2 bg-red-900/20 border border-red-500/50 rounded-lg text-center">
+                    <div className="text-[8px] text-red-400 font-bold mb-1 flex items-center justify-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                      PROGRAM
+                    </div>
+                    <span className="text-2xl">⏰</span>
+                    <div className="text-[10px] text-white mt-1">Starting Soon</div>
+                  </div>
+                </div>
+
+                {/* Transition Controls */}
+                <div className="flex gap-1">
+                  <button className="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded">
+                    CUT
+                  </button>
+                  <button className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded">
+                    AUTO
+                  </button>
+                </div>
+
+                {/* Quick Compositions */}
+                <div className="space-y-1">
+                  {[
+                    { id: 'starting', name: 'Starting Soon', icon: '⏰', active: true },
+                    { id: 'fullcam', name: 'Full Camera', icon: '📹', active: false },
+                    { id: 'screenshare', name: 'Screen + PIP', icon: '🖥️', active: false },
+                    { id: 'brb', name: 'Be Right Back', icon: '🔄', active: false },
+                    { id: 'ending', name: 'Ending Soon', icon: '👋', active: false },
+                  ].map((comp) => (
+                    <button
+                      key={comp.id}
+                      className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition-all ${
+                        comp.active 
+                          ? 'bg-red-600/20 border border-red-500 text-white' 
+                          : 'bg-zinc-800/50 border border-zinc-700 text-zinc-300 hover:bg-zinc-700/50'
+                      }`}
+                    >
+                      <span className="text-lg">{comp.icon}</span>
+                      <span className="text-xs flex-1">{comp.name}</span>
+                      {comp.active && <span className="text-[8px] text-red-400 font-bold">LIVE</span>}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Full Switcher Link */}
+                <div className="pt-2 border-t border-zinc-800">
+                  <button 
+                    onClick={() => setShowFullSwitcher(true)}
+                    className="w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-medium rounded-lg"
+                  >
+                    🎬 Open Full Switcher
+                  </button>
+                </div>
               </div>
             )}
               </div>
@@ -850,6 +917,36 @@ export default function StreamStudioPage() {
           )}
         </div>
       </div>
+
+      {/* Full Mixer Modal */}
+      {showFullMixer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-6xl max-h-[90vh] overflow-auto">
+            <button
+              onClick={() => setShowFullMixer(false)}
+              className="absolute top-2 right-2 z-10 w-8 h-8 bg-zinc-800 hover:bg-zinc-700 rounded-full flex items-center justify-center text-white"
+            >
+              ✕
+            </button>
+            <ProAudioMixerFull />
+          </div>
+        </div>
+      )}
+
+      {/* Full Switcher Modal */}
+      {showFullSwitcher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-auto">
+            <button
+              onClick={() => setShowFullSwitcher(false)}
+              className="absolute top-2 right-2 z-10 w-8 h-8 bg-zinc-800 hover:bg-zinc-700 rounded-full flex items-center justify-center text-white"
+            >
+              ✕
+            </button>
+            <PreviewProgramSwitcher />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
