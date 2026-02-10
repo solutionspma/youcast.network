@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
+// Master account - full platform access with no restrictions
+const MASTER_ACCOUNT_EMAIL = 'Solutions@pitchmarketing.agency';
+
 interface Message {
   id: string;
   sender_id: string;
@@ -50,6 +53,9 @@ export default function MessagesPage() {
       
       setUser(authUser);
       
+      // Check if master account - bypasses all restrictions
+      const isMasterAccount = authUser.email?.toLowerCase() === MASTER_ACCOUNT_EMAIL.toLowerCase();
+      
       // Get user profile for tier
       const { data: profile } = await supabase
         .from('profiles')
@@ -59,7 +65,9 @@ export default function MessagesPage() {
       
       const tier = (profile?.tier || 'free') as UserTier;
       setUserTier(tier);
-      setCanSend(!['guest', 'free'].includes(tier));
+      
+      // Master account or creator+ tier can send messages
+      setCanSend(isMasterAccount || !['guest', 'free'].includes(tier));
       
       // Load conversations
       await loadConversations(authUser.id);
