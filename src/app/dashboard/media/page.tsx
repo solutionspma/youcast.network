@@ -430,7 +430,8 @@ export default function MediaLibraryPage() {
           type: fileType,
           status: 'processing',
           file_size: file.size,
-          file_url: publicUrl,
+          media_url: publicUrl,
+          storage_path: fileName,
           views: 0,
         })
         .select()
