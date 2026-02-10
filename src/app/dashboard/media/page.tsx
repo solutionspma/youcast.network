@@ -39,8 +39,9 @@ const statusColors: Record<string, 'success' | 'warning' | 'info' | 'danger' | '
   failed: 'danger',
 };
 
-function StreamsTable({ items, onDelete }: { items: StreamItem[]; onDelete: (id: string) => void }) {
+function StreamsTable({ items, onDelete, onEmergencyStop }: { items: StreamItem[]; onDelete: (id: string) => void; onEmergencyStop: (id: string) => void }) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [stoppingId, setStoppingId] = useState<string | null>(null);
   
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—';
@@ -64,6 +65,13 @@ function StreamsTable({ items, onDelete }: { items: StreamItem[]; onDelete: (id:
     setDeletingId(id);
     await onDelete(id);
     setDeletingId(null);
+  };
+
+  const handleEmergencyStop = async (id: string) => {
+    if (!confirm('EMERGENCY STOP: This will force-end the stream immediately. Continue?')) return;
+    setStoppingId(id);
+    await onEmergencyStop(id);
+    setStoppingId(null);
   };
 
   const statusColors: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
@@ -98,7 +106,7 @@ function StreamsTable({ items, onDelete }: { items: StreamItem[]; onDelete: (id:
         </thead>
         <tbody className="divide-y divide-surface-700/50">
           {items.map((item) => (
-            <tr key={item.id} className={`hover:bg-surface-800/50 transition-colors ${deletingId === item.id ? 'opacity-50' : ''}`}>
+            <tr key={item.id} className={`hover:bg-surface-800/50 transition-colors ${deletingId === item.id || stoppingId === item.id ? 'opacity-50' : ''}`}>
               <td className="px-4 py-3.5">
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-10 rounded bg-surface-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -136,11 +144,24 @@ function StreamsTable({ items, onDelete }: { items: StreamItem[]; onDelete: (id:
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                   </a>
+                  {item.status === 'live' && (
+                    <button 
+                      onClick={() => handleEmergencyStop(item.id)}
+                      disabled={stoppingId === item.id}
+                      className="p-1.5 rounded hover:bg-orange-500/20 text-orange-400 hover:text-orange-300 transition-colors disabled:opacity-50"
+                      title="Emergency Stop - Force end this stream"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                      </svg>
+                    </button>
+                  )}
                   <button 
                     onClick={() => handleDelete(item.id)}
                     disabled={deletingId === item.id || item.status === 'live'}
                     className="p-1.5 rounded hover:bg-red-500/20 text-surface-400 hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={item.status === 'live' ? "Can't delete live stream" : "Delete stream"}
+                    title={item.status === 'live' ? "Stop stream first" : "Delete stream"}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -326,6 +347,35 @@ export default function MediaLibraryPage() {
     }
   };
 
+  const handleEmergencyStopStream = async (id: string) => {
+    const supabase = createClient();
+    try {
+      const { error } = await supabase
+        .from('streams')
+        .update({ 
+          status: 'ended',
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error stopping stream:', error);
+        alert('Failed to stop stream: ' + error.message);
+        return;
+      }
+      
+      // Update local state
+      setStreams(prev => prev.map(s => 
+        s.id === id ? { ...s, status: 'ended', ended_at: new Date().toISOString() } : s
+      ));
+      
+      alert('Stream stopped successfully!');
+    } catch (err) {
+      console.error('Error stopping stream:', err);
+      alert('Failed to stop stream');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -371,7 +421,7 @@ export default function MediaLibraryPage() {
             label: `Live Streams (${streams.length})`,
             content: (
               <Card variant="default" padding="none">
-                <StreamsTable items={streams} onDelete={handleDeleteStream} />
+                <StreamsTable items={streams} onDelete={handleDeleteStream} onEmergencyStop={handleEmergencyStopStream} />
               </Card>
             ),
           },
