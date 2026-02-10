@@ -286,10 +286,15 @@ export default function PersonalizedHome() {
                     {stream.thumbnail_url ? (
                       <img src={stream.thumbnail_url} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-10 h-10 text-surface-600" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
+                      <div className="w-full h-full bg-gradient-to-br from-brand-600/30 to-purple-600/30 flex items-center justify-center">
+                        <div className="relative">
+                          <div className="w-16 h-16 rounded-full bg-red-500/20 animate-pulse absolute -inset-2" />
+                          <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </div>
+                        </div>
                       </div>
                     )}
                     <div className="absolute top-2 left-2 flex items-center gap-2">
@@ -362,12 +367,23 @@ export default function PersonalizedHome() {
                           <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover" />
                         ) : (
                           <video
-                            ref={(el) => { if (el) videoRefs.current.set(video.id, el); }}
+                            ref={(el) => { 
+                              if (el) {
+                                videoRefs.current.set(video.id, el);
+                                // Auto-seek to 1 second to get a thumbnail frame
+                                if (!video.thumbnail_url && el.readyState === 0) {
+                                  el.addEventListener('loadeddata', () => {
+                                    el.currentTime = 1;
+                                  }, { once: true });
+                                }
+                              }
+                            }}
                             src={video.media_url}
                             className="w-full h-full object-cover"
                             muted
                             loop
                             playsInline
+                            preload="metadata"
                             poster={video.thumbnail_url || undefined}
                           />
                         )}
@@ -382,10 +398,12 @@ export default function PersonalizedHome() {
                         )}
                       </>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-10 h-10 text-surface-600" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
+                      <div className="w-full h-full bg-gradient-to-br from-surface-700 to-surface-800 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-surface-600 flex items-center justify-center">
+                          <svg className="w-6 h-6 text-surface-400 ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </div>
                       </div>
                     )}
                     {video.duration && (

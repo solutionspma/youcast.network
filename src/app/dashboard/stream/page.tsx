@@ -55,6 +55,8 @@ export default function StreamStudioPage() {
   const [chatMessages, setChatMessages] = useState(mockChatMessages);
   const [cameraResolution, setCameraResolution] = useState<'720p' | '1080p'>('1080p');
   const [cameraFrameRate, setCameraFrameRate] = useState<30 | 60>(30);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
   
   const isInitialMount = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -328,43 +330,74 @@ export default function StreamStudioPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         {/* Left Sidebar — Devices / Scenes / Audio / Graphics */}
-        <div className="w-full md:w-80 bg-surface-900/80 border-r border-surface-700/50 flex flex-col md:max-h-none max-h-48">
-          {/* Panel Tabs */}
-          <div className="flex border-b border-surface-700/50 overflow-x-auto">
-            {(['devices', 'scenes', 'audio', 'graphics', 'overlays', 'destinations', 'compositions'] as LeftPanel[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setLeftPanel(tab)}
-                className={`flex-1 py-2.5 text-xs font-medium capitalize transition-colors ${
-                  leftPanel === tab
-                    ? 'text-white border-b-2 border-brand-500 bg-surface-800/50'
-                    : 'text-surface-500 hover:text-surface-300'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+        <div className={`${leftCollapsed ? 'w-0 overflow-hidden' : 'w-full md:w-80'} bg-surface-900/80 border-r border-surface-700/50 flex flex-col md:max-h-none max-h-48 transition-all duration-300`}>
+          {!leftCollapsed && (
+            <>
+              {/* Panel Tabs - Colorful Pills */}
+              <div className="p-2 border-b border-surface-700/50">
+                <div className="grid grid-cols-4 gap-1.5 mb-1.5">
+                  {([
+                    { key: 'devices', label: '📹', color: 'from-blue-500 to-cyan-500' },
+                    { key: 'scenes', label: '🎬', color: 'from-purple-500 to-pink-500' },
+                    { key: 'audio', label: '🎵', color: 'from-green-500 to-emerald-500' },
+                    { key: 'graphics', label: '✨', color: 'from-yellow-500 to-orange-500' },
+                  ] as const).map(({ key, label, color }) => (
+                    <button
+                      key={key}
+                      onClick={() => setLeftPanel(key)}
+                      className={`py-2 px-1 text-sm rounded-lg font-medium transition-all ${
+                        leftPanel === key
+                          ? `bg-gradient-to-r ${color} text-white shadow-lg scale-105`
+                          : 'bg-surface-800 text-surface-400 hover:bg-surface-700 hover:text-white'
+                      }`}
+                      title={key}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    { key: 'overlays', label: '🖼️', color: 'from-rose-500 to-red-500' },
+                    { key: 'destinations', label: '📡', color: 'from-indigo-500 to-blue-500' },
+                    { key: 'compositions', label: '🎭', color: 'from-amber-500 to-yellow-500' },
+                  ] as const).map(({ key, label, color }) => (
+                    <button
+                      key={key}
+                      onClick={() => setLeftPanel(key)}
+                      className={`py-2 px-1 text-sm rounded-lg font-medium transition-all ${
+                        leftPanel === key
+                          ? `bg-gradient-to-r ${color} text-white shadow-lg scale-105`
+                          : 'bg-surface-800 text-surface-400 hover:bg-surface-700 hover:text-white'
+                      }`}
+                      title={key}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-center text-[10px] text-surface-500 mt-1.5 capitalize">{leftPanel}</div>
+              </div>
 
-          {/* Panel Content */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            {/* DEVICES PANEL - Real Hardware */}
-            {leftPanel === 'devices' && (
-              <div className="space-y-4">
-                {/* Camera Selection */}
-                <div>
-                  <label className="block text-xs font-medium text-white mb-2">Camera</label>
-                  <select
-                    value={stream.selectedCamera}
-                    onChange={(e) => handleDeviceChange('camera', e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-sm text-white"
-                  >
-                    <option value="">Select Camera</option>
-                    {stream.cameras.map(cam => (
-                      <option key={cam.deviceId} value={cam.deviceId}>{cam.label}</option>
-                    ))}
+              {/* Panel Content */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                {/* DEVICES PANEL - Real Hardware */}
+                {leftPanel === 'devices' && (
+                  <div className="space-y-4">
+                    {/* Camera Selection */}
+                    <div>
+                      <label className="block text-xs font-medium text-white mb-2">Camera</label>
+                      <select
+                        value={stream.selectedCamera}
+                        onChange={(e) => handleDeviceChange('camera', e.target.value)}
+                        className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-sm text-white"
+                      >
+                        <option value="">Select Camera</option>
+                        {stream.cameras.map(cam => (
+                          <option key={cam.deviceId} value={cam.deviceId}>{cam.label}</option>
+                        ))}
                   </select>
                   {stream.cameraStream && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-green-500">
@@ -592,8 +625,21 @@ export default function StreamStudioPage() {
                 <CompositionSwitcher />
               </div>
             )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
+        
+        {/* Left Panel Toggle Button */}
+        <button
+          onClick={() => setLeftCollapsed(!leftCollapsed)}
+          className="absolute left-0 md:left-80 top-1/2 -translate-y-1/2 z-20 w-6 h-12 bg-surface-800 hover:bg-surface-700 border border-surface-600 rounded-r-lg flex items-center justify-center transition-all"
+          style={{ left: leftCollapsed ? 0 : undefined }}
+        >
+          <svg className={`w-4 h-4 text-surface-400 transition-transform ${leftCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
 
         {/* Center — Preview + Controls */}
         <div className="flex-1 flex flex-col bg-surface-950 p-2 md:p-4 overflow-y-auto">
@@ -702,46 +748,68 @@ export default function StreamStudioPage() {
             </div>
           </div>
         </div>
+        
+        {/* Right Panel Toggle Button */}
+        <button
+          onClick={() => setRightCollapsed(!rightCollapsed)}
+          className="absolute right-0 md:right-80 top-1/2 -translate-y-1/2 z-20 w-6 h-12 bg-surface-800 hover:bg-surface-700 border border-surface-600 rounded-l-lg flex items-center justify-center transition-all"
+          style={{ right: rightCollapsed ? 0 : undefined }}
+        >
+          <svg className={`w-4 h-4 text-surface-400 transition-transform ${rightCollapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
 
         {/* Right Sidebar — Chat / Stats */}
-        <div className="w-full md:w-80 bg-surface-900/80 border-l border-surface-700/50 flex flex-col md:max-h-none max-h-64 hidden md:flex">
-          {/* Panel Tabs */}
-          <div className="flex border-b border-surface-700/50">
-            {(['chat', 'stats', 'soundboard', 'collab'] as RightPanel[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setRightPanel(tab)}
-                className={`flex-1 py-2.5 text-xs font-medium capitalize transition-colors ${
-                  rightPanel === tab
-                    ? 'text-white border-b-2 border-brand-500 bg-surface-800/50'
-                    : 'text-surface-500 hover:text-surface-300'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+        <div className={`${rightCollapsed ? 'w-0 overflow-hidden' : 'w-full md:w-80'} bg-surface-900/80 border-l border-surface-700/50 flex flex-col md:max-h-none max-h-64 hidden md:flex transition-all duration-300`}>
+          {!rightCollapsed && (
+            <>
+              {/* Panel Tabs - Colorful Pills */}
+              <div className="p-2 border-b border-surface-700/50">
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([
+                    { key: 'chat', label: '💬', color: 'from-blue-500 to-cyan-500' },
+                    { key: 'stats', label: '📊', color: 'from-green-500 to-emerald-500' },
+                    { key: 'soundboard', label: '🔊', color: 'from-purple-500 to-pink-500' },
+                    { key: 'collab', label: '👥', color: 'from-orange-500 to-red-500' },
+                  ] as const).map(({ key, label, color }) => (
+                    <button
+                      key={key}
+                      onClick={() => setRightPanel(key)}
+                      className={`py-2 px-1 text-sm rounded-lg font-medium transition-all ${
+                        rightPanel === key
+                          ? `bg-gradient-to-r ${color} text-white shadow-lg scale-105`
+                          : 'bg-surface-800 text-surface-400 hover:bg-surface-700 hover:text-white'
+                      }`}
+                      title={key}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="text-center text-[10px] text-surface-500 mt-1.5 capitalize">{rightPanel}</div>
+              </div>
 
-          {/* Panel Content */}
-          <div className="flex-1 overflow-hidden">
-            {rightPanel === 'chat' && (
-              <StreamChat
-                messages={chatMessages}
-                onSendMessage={handleSendMessage}
-                viewerCount={stream.viewerCount}
-                isLive={stream.status === 'live'}
-              />
-            )}
-            {rightPanel === 'stats' && (
-              <div className="p-4 space-y-4 text-sm">
-                <div>
-                  <p className="text-xs font-medium text-surface-400 mb-1">Stream Status</p>
-                  <p className="text-white capitalize">{stream.status}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-surface-400 mb-1">Duration</p>
-                  <p className="text-white font-mono">{formatDuration(stream.duration)}</p>
-                </div>
+              {/* Panel Content */}
+              <div className="flex-1 overflow-hidden">
+                {rightPanel === 'chat' && (
+                  <StreamChat
+                    messages={chatMessages}
+                    onSendMessage={handleSendMessage}
+                    viewerCount={stream.viewerCount}
+                    isLive={stream.status === 'live'}
+                  />
+                )}
+                {rightPanel === 'stats' && (
+                  <div className="p-4 space-y-4 text-sm">
+                    <div>
+                      <p className="text-xs font-medium text-surface-400 mb-1">Stream Status</p>
+                      <p className="text-white capitalize">{stream.status}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-surface-400 mb-1">Duration</p>
+                      <p className="text-white font-mono">{formatDuration(stream.duration)}</p>
+                    </div>
                 <div>
                   <p className="text-xs font-medium text-surface-400 mb-1">Viewers</p>
                   <p className="text-white">{stream.viewerCount}</p>
@@ -777,7 +845,9 @@ export default function StreamStudioPage() {
                 </div>
               </div>
             )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
