@@ -240,17 +240,15 @@ export default function WatchStreamPage() {
     const connectToLiveStream = async () => {
       try {
         console.log('🔌 Connecting to LiveKit room: stream-' + stream.id);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          console.warn('⚠️ User not authenticated');
-          setError('Please sign in to watch');
-          return;
-        }
         
-        // Generate viewer token
+        // Get user if logged in, but don't require it
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Generate viewer token - use guest ID if not logged in
         const roomName = `stream-${stream.id}`;
-        const participantName = `viewer-${user.id}`;
-        console.log('🎫 Generating token for:', participantName);
+        const viewerId = user?.id || `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const participantName = `viewer-${viewerId}`;
+        console.log('🎫 Generating token for:', participantName, '(guest:', !user, ')');
         const token = await generateLiveKitToken(roomName, participantName, false);
         
         if (!token) {

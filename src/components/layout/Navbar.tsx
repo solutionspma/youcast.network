@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { createClient } from '@/lib/supabase/client';
 
 const navLinks = [
   { href: '/watch', label: 'Watch' },
@@ -14,6 +15,25 @@ const navLinks = [
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const supabase = createClient();
+    
+    // Check initial auth state
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsLoggedIn(!!user);
+      setIsLoading(false);
+    });
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+    
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
@@ -41,12 +61,22 @@ export default function Navbar() {
 
           {/* Actions */}
           <div className="hidden md:flex items-center gap-2">
-            <Link href="/auth/login">
-              <Button variant="ghost" size="sm">Log in</Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button size="sm">Get Started</Button>
-            </Link>
+            {isLoading ? (
+              <div className="w-20 h-8 bg-surface-800 rounded-lg animate-pulse" />
+            ) : isLoggedIn ? (
+              <Link href="/dashboard">
+                <Button size="sm">Dashboard</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/auth/login">
+                  <Button variant="ghost" size="sm">Log in</Button>
+                </Link>
+                <Link href="/auth/signup">
+                  <Button size="sm">Get Started</Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Toggle */}
@@ -78,12 +108,20 @@ export default function Navbar() {
                 </Link>
               ))}
               <div className="mt-4 pt-4 border-t border-surface-800/50 flex flex-col gap-2">
-                <Link href="/auth/login" onClick={() => setMobileOpen(false)}>
-                  <Button variant="outline" fullWidth size="sm">Log in</Button>
-                </Link>
-                <Link href="/auth/signup" onClick={() => setMobileOpen(false)}>
-                  <Button fullWidth size="sm">Get Started</Button>
-                </Link>
+                {isLoggedIn ? (
+                  <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
+                    <Button fullWidth size="sm">Dashboard</Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/auth/login" onClick={() => setMobileOpen(false)}>
+                      <Button variant="outline" fullWidth size="sm">Log in</Button>
+                    </Link>
+                    <Link href="/auth/signup" onClick={() => setMobileOpen(false)}>
+                      <Button fullWidth size="sm">Get Started</Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
