@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-
-// Master account - full platform access with no restrictions
-const MASTER_ACCOUNT_EMAIL = 'Solutions@pitchmarketing.agency';
+import { isMasterAccount, getEffectiveTier } from '@/lib/auth/master';
 
 interface CRMStats {
   total_subscribers: number;
@@ -38,7 +36,7 @@ interface UserScore {
 interface EngagementEvent {
   id: string;
   user_id: string;
-  event_type: string;
+  type: string;  // Using 'type' to match database column
   metadata: any;
   created_at: string;
   profiles?: { display_name: string };
@@ -61,7 +59,7 @@ export default function CRMPage() {
   const [user, setUser] = useState<any>(null);
   const [userTier, setUserTier] = useState<UserTier>('free');
   const [userRole, setUserRole] = useState<string>('viewer');
-  const [isMasterAccount, setIsMasterAccount] = useState(false);
+  const [hasMasterAccess, setHasMasterAccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'subscribers' | 'engagement' | 'scores' | 'users'>('overview');
   
@@ -99,8 +97,8 @@ export default function CRMPage() {
       setUser(authUser);
       
       // Check if master account - bypasses all restrictions
-      const masterAccount = authUser.email?.toLowerCase() === MASTER_ACCOUNT_EMAIL.toLowerCase();
-      setIsMasterAccount(masterAccount);
+      const masterAccount = isMasterAccount(authUser.email);
+      setHasMasterAccess(masterAccount);
       
       // Get user profile
       const { data: profile } = await supabase
@@ -198,7 +196,7 @@ export default function CRMPage() {
 
   // Master account: update user privileges
   async function updateUserPrivileges(userId: string, newTier: UserTier, newRole: UserRole) {
-    if (!isMasterAccount) return;
+    if (!hasMasterAccess) return;
     
     setSavingUser(true);
     const supabase = createClient();
@@ -238,7 +236,7 @@ export default function CRMPage() {
   }
 
   // Access denied
-  const hasAccess = isMasterAccount || userRole === 'admin' || ['pro', 'enterprise'].includes(userTier);
+  const hasAccess = hasMasterAccess || userRole === 'admin' || ['pro', 'enterprise'].includes(userTier);
   if (!hasAccess) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -278,14 +276,14 @@ export default function CRMPage() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <h1 className="text-3xl font-display font-bold text-white">Platform CRM</h1>
-          {isMasterAccount && (
+          {hasMasterAccess && (
             <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold uppercase tracking-wider">
               Master Account
             </span>
           )}
         </div>
         <p className="text-surface-400">
-          {isMasterAccount 
+          {hasMasterAccess 
             ? 'Full platform access. Manage subscribers, engagement, user scores, and user privileges.'
             : 'Manage subscribers, track engagement, and analyze user behavior.'}
         </p>
@@ -335,7 +333,7 @@ export default function CRMPage() {
           </button>
         ))}
         {/* Users tab - only visible to master account */}
-        {isMasterAccount && (
+        {hasMasterAccess && (
           <button
             onClick={() => setActiveTab('users')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -418,22 +416,22 @@ export default function CRMPage() {
               {engagementEvents.slice(0, 10).map((event) => (
                 <div key={event.id} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-surface-800/30 transition-colors">
                   <div className="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center">
-                    {event.event_type === 'stream_view' && (
+                    {event.type === 'stream_view' && (
                       <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
                       </svg>
                     )}
-                    {event.event_type === 'video_watch' && (
+                    {event.type === 'video_watch' && (
                       <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m0 0c.621 0 1.125.504 1.125 1.125v1.5m-2.625-2.625c.621 0 1.125.504 1.125 1.125v1.5m0 0v1.5c0 .621-.504 1.125-1.125 1.125m0-3.75h-1.5m0 3.75h1.5m0 0c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h1.5m14.25 0h1.5" />
                       </svg>
                     )}
-                    {event.event_type === 'subscription' && (
+                    {event.type === 'subscription' && (
                       <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
                       </svg>
                     )}
-                    {!['stream_view', 'video_watch', 'subscription'].includes(event.event_type) && (
+                    {!['stream_view', 'video_watch', 'subscription'].includes(event.type) && (
                       <svg className="w-4 h-4 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
                       </svg>
@@ -442,7 +440,7 @@ export default function CRMPage() {
                   <div className="flex-1 min-w-0">
                     <span className="text-white">{event.profiles?.display_name || 'Anonymous'}</span>
                     <span className="text-surface-500"> • </span>
-                    <span className="text-surface-400">{event.event_type.replace(/_/g, ' ')}</span>
+                    <span className="text-surface-400">{event.type.replace(/_/g, ' ')}</span>
                   </div>
                   <div className="text-xs text-surface-500">{formatTime(event.created_at)}</div>
                 </div>
@@ -506,7 +504,7 @@ export default function CRMPage() {
               {engagementEvents.map((event) => (
                 <tr key={event.id} className="hover:bg-surface-800/30 transition-colors">
                   <td className="px-6 py-4 text-white">{event.profiles?.display_name || 'Anonymous'}</td>
-                  <td className="px-6 py-4 text-surface-300">{event.event_type.replace(/_/g, ' ')}</td>
+                  <td className="px-6 py-4 text-surface-300">{event.type.replace(/_/g, ' ')}</td>
                   <td className="px-6 py-4 text-surface-500 text-sm">
                     {event.metadata ? JSON.stringify(event.metadata).slice(0, 50) : '-'}
                   </td>
@@ -572,7 +570,7 @@ export default function CRMPage() {
       )}
       
       {/* Users Tab - Master Account Only */}
-      {activeTab === 'users' && isMasterAccount && (
+      {activeTab === 'users' && hasMasterAccess && (
         <div className="space-y-6">
           {/* Search */}
           <div className="bg-surface-900/50 rounded-xl border border-surface-800/50 p-4">
@@ -621,7 +619,7 @@ export default function CRMPage() {
               <tbody className="divide-y divide-surface-800/30">
                 {filteredUsers.map((platformUser) => {
                   const isEditing = editingUserId === platformUser.id;
-                  const isMaster = platformUser.email?.toLowerCase() === MASTER_ACCOUNT_EMAIL.toLowerCase();
+                  const isMaster = isMasterAccount(platformUser.email);
                   
                   return (
                     <tr key={platformUser.id} className={`hover:bg-surface-800/30 transition-colors ${isMaster ? 'bg-amber-500/5' : ''}`}>

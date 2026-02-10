@@ -11,13 +11,16 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^8.7.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "livekit-client": "^2.17.1",
     "livekit-server-sdk": "^2.15.0",
     "next": "^14.2.21",
+    "openai": "^6.21.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "stripe": "^20.3.1"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.8",

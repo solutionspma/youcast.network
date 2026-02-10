@@ -2,11 +2,12 @@
 
 // ============================================================================
 // ADMIN CONTROL PANEL
-// Visible ONLY if user.global_admin === true
+// Visible ONLY if user.global_admin === true OR master account
 // ============================================================================
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { isMasterAccount } from '@/lib/auth/master';
 
 // ─── Inline SVG Icons ────────────────────────────────────────────────────────
 
@@ -585,6 +586,12 @@ export function AdminControlPanel() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setIsAdmin(false);
+        return;
+      }
+      
+      // Master account always has admin access
+      if (isMasterAccount(user.email)) {
+        setIsAdmin(true);
         return;
       }
       

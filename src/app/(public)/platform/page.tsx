@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { isMasterAccount, getEffectiveTier, hasAdminAccess } from '@/lib/auth/master';
 
 export const metadata: Metadata = { title: 'Platform' };
 
@@ -273,8 +274,10 @@ export default async function PlatformPage() {
       .eq('id', user.id)
       .single();
     
-    userTier = profile?.tier || 'free';
-    isAdmin = profile?.global_admin === true;
+    // Use effective tier (master account gets enterprise)
+    userTier = getEffectiveTier(user.email, profile?.tier);
+    // Master account or global_admin = admin access
+    isAdmin = hasAdminAccess(user.email, profile?.global_admin);
   }
 
   return (

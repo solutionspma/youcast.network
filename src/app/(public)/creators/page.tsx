@@ -9,6 +9,7 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { isMasterAccount, getEffectiveTier } from '@/lib/auth/master';
 
 export const metadata: Metadata = { title: 'Creators' };
 
@@ -119,6 +120,12 @@ export default async function CreatorsPage() {
       .eq('id', user.id)
       .single();
     profile = profileData;
+    
+    // Get effective tier for master account
+    const effectiveTier = getEffectiveTier(user.email, profile?.tier);
+    if (profile) {
+      profile = { ...profile, tier: effectiveTier };
+    }
 
     // Fetch user's channel
     const { data: channelData } = await supabase
