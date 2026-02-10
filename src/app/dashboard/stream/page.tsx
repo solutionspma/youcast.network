@@ -23,12 +23,13 @@ import ProSoundboard from '@/components/stream/ProSoundboard';
 import { ParticipantList, CuePanel, RoleBadge } from '@/components/stream/CollaborativeControls';
 import ProAudioMixerFull from '@/components/stream/ProAudioMixerFull';
 import PreviewProgramSwitcher from '@/components/stream/PreviewProgramSwitcher';
+import ThumbnailStudio from '@/components/stream/ThumbnailStudio';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type LeftPanel = 'devices' | 'scenes' | 'audio' | 'graphics' | 'overlays' | 'destinations' | 'compositions';
+type LeftPanel = 'devices' | 'scenes' | 'audio' | 'graphics' | 'overlays' | 'destinations' | 'compositions' | 'thumbnails';
 type RightPanel = 'chat' | 'stats' | 'soundboard' | 'collab';
 
 type ChatMessage = {
@@ -61,6 +62,7 @@ export default function StreamStudioPage() {
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [showFullMixer, setShowFullMixer] = useState(false);
   const [showFullSwitcher, setShowFullSwitcher] = useState(false);
+  const [showThumbnailStudio, setShowThumbnailStudio] = useState(false);
   
   const isInitialMount = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -362,11 +364,12 @@ export default function StreamStudioPage() {
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-4 gap-1.5">
                   {([
                     { key: 'overlays', label: '🖼️', color: 'from-rose-500 to-red-500' },
                     { key: 'destinations', label: '📡', color: 'from-indigo-500 to-blue-500' },
                     { key: 'compositions', label: '🎭', color: 'from-amber-500 to-yellow-500' },
+                    { key: 'thumbnails', label: '📸', color: 'from-teal-500 to-cyan-500' },
                   ] as const).map(({ key, label, color }) => (
                     <button
                       key={key}
@@ -692,6 +695,38 @@ export default function StreamStudioPage() {
                 </div>
               </div>
             )}
+
+            {/* THUMBNAIL STUDIO PANEL */}
+            {leftPanel === 'thumbnails' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-medium text-white">📸 Thumbnail Studio</h3>
+                </div>
+                <p className="text-[10px] text-surface-500">
+                  Create platform-optimized thumbnails for your streams, VODs, and Shorts.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { name: 'YouTube', size: '1280×720', icon: '📺' },
+                    { name: 'Shorts', size: '1080×1920', icon: '📱' },
+                    { name: 'Instagram', size: '1080×1080', icon: '📷' },
+                    { name: 'TikTok', size: '1080×1920', icon: '🎵' },
+                  ].map(p => (
+                    <div key={p.name} className="p-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-center">
+                      <span className="text-lg">{p.icon}</span>
+                      <div className="text-[10px] text-white">{p.name}</div>
+                      <div className="text-[8px] text-zinc-500">{p.size}</div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowThumbnailStudio(true)}
+                  className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white text-xs font-medium rounded-lg"
+                >
+                  🎨 Open Thumbnail Studio
+                </button>
+              </div>
+            )}
               </div>
             </>
           )}
@@ -944,6 +979,21 @@ export default function StreamStudioPage() {
               ✕
             </button>
             <PreviewProgramSwitcher />
+          </div>
+        </div>
+      )}
+
+      {/* Thumbnail Studio Modal */}
+      {showThumbnailStudio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+          <div className="relative w-full h-full max-w-[95vw] max-h-[95vh] overflow-hidden rounded-xl border border-zinc-700">
+            <button
+              onClick={() => setShowThumbnailStudio(false)}
+              className="absolute top-2 right-2 z-10 w-8 h-8 bg-zinc-800 hover:bg-zinc-700 rounded-full flex items-center justify-center text-white"
+            >
+              ✕
+            </button>
+            <ThumbnailStudio className="h-full" />
           </div>
         </div>
       )}
