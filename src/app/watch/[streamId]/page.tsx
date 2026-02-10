@@ -121,6 +121,73 @@ export default function WatchStreamPage() {
   }, [stream, supabase]);
   
   // ============================================================================
+  // REAL-TIME CHAT SUBSCRIPTION
+  // ============================================================================
+  
+  useEffect(() => {
+    if (!stream) return;
+    
+    // Load existing chat messages
+    const loadMessages = async () => {
+      const { data: messages, error } = await supabase
+        .from('chat_messages')
+        .select('id, message, created_at, user_id, profiles:user_id (display_name, email)')
+        .eq('stream_id', stream.id)
+        .order('created_at', { ascending: true })
+        .limit(100);
+      
+      if (!error && messages) {
+        const formatted = messages.map((msg: any) => ({
+          id: msg.id,
+          username: msg.profiles?.display_name || msg.profiles?.email?.split('@')[0] || 'Anonymous',
+          message: msg.message,
+          timestamp: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: 'message' as const,
+        }));
+        setChatMessages(formatted);
+      }
+    };
+    
+    loadMessages();
+    
+    // Subscribe to real-time chat updates
+    const channel = supabase
+      .channel(`chat:${stream.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `stream_id=eq.${stream.id}`
+        },
+        async (payload) => {
+          // Fetch user profile for the new message
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name, email')
+            .eq('id', payload.new.user_id)
+            .single();
+          
+          const newMsg = {
+            id: payload.new.id,
+            username: profile?.display_name || profile?.email?.split('@')[0] || 'Anonymous',
+            message: payload.new.message,
+            timestamp: new Date(payload.new.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            type: 'message' as const,
+          };
+          
+          setChatMessages(prev => [...prev, newMsg]);
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [stream, supabase]);
+  
+  // ============================================================================
   // START ANALYTICS TRACKING
   // ============================================================================
   
@@ -322,17 +389,20 @@ export default function WatchStreamPage() {
       return;
     }
     
-    // TODO: Send message to Supabase real-time chat
-    const newMessage = {
-      id: `msg-${Date.now()}`,
-      username: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Anonymous',
-      message,
-      timestamp: 'now',
-      type: 'message' as const,
-    };
+    // Insert message into Supabase (real-time subscription will update UI)
+    const { error } = await supabase
+      .from('chat_messages')
+      .insert({
+        stream_id: stream.id,
+        user_id: user.id,
+        message: message.trim()
+      });
     
-    setChatMessages(prev => [...prev, newMessage]);
-    analytics.trackComment(streamId, newMessage.id, message);
+    if (error) {
+      console.error('Failed to send message:', error);
+    }
+    
+    analytics.trackComment(streamId, `msg-${Date.now()}`, message);
   };
   
   // ============================================================================

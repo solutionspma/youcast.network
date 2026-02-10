@@ -1050,6 +1050,7 @@ export function useStream(channelId?: string) {
     
     // Streaming
     status,
+    streamId,
     streamHealth,
     duration,
     viewerCount,
