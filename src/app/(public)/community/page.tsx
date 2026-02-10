@@ -34,14 +34,16 @@ const eventTypeLabels: Record<string, string> = {
   'ama': 'AMA',
 };
 
-// Fallback static data
+// Fallback static data - 8 communities
 const fallbackGroups: CommunityGroup[] = [
-  { id: '1', name: 'Creator Lounge', slug: 'creator-lounge', description: 'General discussion for all Youcast creators. Share wins, ask questions, collaborate.', category: 'general', member_count: 4200, is_featured: true },
-  { id: '2', name: 'Stream Tech', slug: 'stream-tech', description: 'Technical discussions on streaming setups, encoding, and production workflows.', category: 'tech', member_count: 1800, is_featured: true },
-  { id: '3', name: 'Church Media', slug: 'church-media', description: 'Dedicated space for church media teams sharing best practices for worship broadcasts.', category: 'industry', member_count: 2100, is_featured: true },
-  { id: '4', name: 'Podcast Network', slug: 'podcast-network', description: 'Audio creators discussing recording, editing, distribution, and audience growth.', category: 'industry', member_count: 1500, is_featured: true },
-  { id: '5', name: 'Growth & Marketing', slug: 'growth-marketing', description: 'Strategies for audience growth, SEO, social media, and cross-promotion.', category: 'marketing', member_count: 3300, is_featured: true },
-  { id: '6', name: 'Developer Hub', slug: 'developer-hub', description: 'API discussions, integrations, custom tools, and open-source contributions.', category: 'dev', member_count: 890, is_featured: true },
+  { id: 'c1', name: 'Creator Lounge', slug: 'creator-lounge', description: 'The central hub for all YouCast creators. Share wins, ask questions, find collaborators.', category: 'general', member_count: 4200, is_featured: true },
+  { id: 'c2', name: 'Stream Tech', slug: 'stream-tech', description: 'Technical discussions on streaming setups, encoding, and production workflows.', category: 'tech', member_count: 1800, is_featured: true },
+  { id: 'c3', name: 'Church Media', slug: 'church-media', description: 'Dedicated space for church media teams sharing best practices for worship broadcasts.', category: 'industry', member_count: 2100, is_featured: true },
+  { id: 'c4', name: 'Podcast Network', slug: 'podcast-network', description: 'Audio creators discussing recording, editing, distribution, and audience growth.', category: 'industry', member_count: 1500, is_featured: true },
+  { id: 'c5', name: 'Growth & Marketing', slug: 'growth-marketing', description: 'Strategies for audience growth, SEO, social media, and cross-promotion.', category: 'marketing', member_count: 3300, is_featured: true },
+  { id: 'c6', name: 'Sports Media', slug: 'sports-media', description: 'For sports broadcasters, commentators, and teams. Live events and replays.', category: 'industry', member_count: 980, is_featured: true },
+  { id: 'c7', name: 'Education Creators', slug: 'education-creators', description: 'Teachers and trainers creating video content, courses, and educational materials.', category: 'industry', member_count: 1250, is_featured: true },
+  { id: 'c8', name: 'Music & Live Performance', slug: 'music-live', description: 'Musicians streaming concerts, sessions, and music content. Audio optimization and fan engagement.', category: 'industry', member_count: 890, is_featured: true },
 ];
 
 const fallbackEvents: CommunityEvent[] = [
@@ -314,7 +316,11 @@ export default function CommunityPage() {
               {groups.map((group) => {
                 const isMember = userMemberships.has(group.id);
                 return (
-                  <div key={group.id} className="bg-surface-900 border border-surface-800 rounded-2xl p-6 card-hover group">
+                  <Link 
+                    key={group.id} 
+                    href={`/c/${group.slug}`}
+                    className="bg-surface-900 border border-surface-800 rounded-2xl p-6 card-hover group block"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-400 flex items-center justify-center flex-shrink-0">
@@ -331,12 +337,15 @@ export default function CommunityPage() {
                       variant={isMember ? 'outline' : 'primary'} 
                       size="sm" 
                       className="w-full"
-                      onClick={() => handleJoinGroup(group.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleJoinGroup(group.id);
+                      }}
                       disabled={joining === group.id}
                     >
                       {joining === group.id ? 'Loading...' : isMember ? 'Joined ✓' : 'Join Group'}
                     </Button>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

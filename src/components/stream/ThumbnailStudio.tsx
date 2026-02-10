@@ -12,6 +12,13 @@ import {
   AVAILABLE_FONTS,
   DEFAULT_TEXT_STYLE,
 } from '@/types/thumbnail';
+import {
+  DEFAULT_TEMPLATES,
+  ThumbnailTemplate,
+  TemplateCategory,
+  templateLayerToCanvasLayer,
+  getTemplatesByCategory,
+} from '@/types/templates';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -558,8 +565,15 @@ export default function ThumbnailStudio({ className = '' }: { className?: string
   const [canvas, setCanvas] = useState<ThumbnailCanvas>(() => createDefaultCanvas('youtube'));
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ past: ThumbnailCanvas[]; future: ThumbnailCanvas[] }>({ past: [], future: [] });
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateFilter, setTemplateFilter] = useState<TemplateCategory | 'all'>('all');
 
   const selectedLayer = canvas.layers.find(l => l.id === selectedLayerId) || null;
+  
+  // Get filtered templates
+  const filteredTemplates = templateFilter === 'all' 
+    ? DEFAULT_TEMPLATES 
+    : getTemplatesByCategory(templateFilter);
 
   // History management
   const pushHistory = useCallback(() => {
@@ -592,6 +606,33 @@ export default function ThumbnailStudio({ className = '' }: { className?: string
       };
     });
   }, [canvas]);
+
+  // Apply a template to the canvas
+  const applyTemplate = useCallback((template: ThumbnailTemplate) => {
+    pushHistory();
+    
+    // Convert template layers to canvas layers
+    const newLayers: ThumbnailLayer[] = template.layers.map((layer) => 
+      templateLayerToCanvasLayer(layer, template.canvas.width, template.canvas.height)
+    );
+    
+    // Find background layer for background color
+    const bgLayer = template.layers.find(l => l.role === 'background');
+    const bgColor = bgLayer?.fill || '#1a1a2e';
+    
+    setCanvas(c => ({
+      ...c,
+      name: `${template.name} - Custom`,
+      width: template.canvas.width,
+      height: template.canvas.height,
+      backgroundColor: bgColor,
+      layers: newLayers,
+      updatedAt: new Date().toISOString(),
+    }));
+    
+    setSelectedLayerId(null);
+    setShowTemplates(false);
+  }, [pushHistory]);
 
   // Layer operations
   const addTextLayer = () => {
@@ -779,6 +820,69 @@ export default function ThumbnailStudio({ className = '' }: { className?: string
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Layers */}
         <div className="w-56 flex-shrink-0 flex flex-col gap-2 p-2 bg-zinc-900/50 border-r border-zinc-800 overflow-y-auto">
+          {/* Templates Button */}
+          <button
+            onClick={() => setShowTemplates(!showTemplates)}
+            className={`w-full p-2 rounded text-center font-medium transition-colors ${
+              showTemplates
+                ? 'bg-brand-600 text-white'
+                : 'bg-gradient-to-r from-brand-600 to-purple-600 text-white hover:opacity-90'
+            }`}
+          >
+            <span className="text-sm">✨ Templates</span>
+          </button>
+
+          {/* Template Browser */}
+          {showTemplates && (
+            <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden">
+              <div className="px-2 py-1.5 bg-zinc-800 border-b border-zinc-700 flex items-center gap-1">
+                <select
+                  value={templateFilter}
+                  onChange={(e) => setTemplateFilter(e.target.value as TemplateCategory | 'all')}
+                  className="flex-1 text-[10px] bg-zinc-700 border-none rounded px-1 py-0.5 text-white"
+                >
+                  <option value="all">All Templates</option>
+                  <option value="podcast">Podcast</option>
+                  <option value="reaction">Reaction</option>
+                  <option value="education">Education</option>
+                  <option value="church">Church</option>
+                  <option value="business">Business</option>
+                  <option value="short-form">Short Form</option>
+                  <option value="emergency">Breaking News</option>
+                </select>
+              </div>
+              <div className="max-h-48 overflow-y-auto p-1.5 space-y-1.5">
+                {filteredTemplates.map((template) => {
+                  const bgLayer = template.layers.find(l => l.role === 'background');
+                  return (
+                    <button
+                      key={template.id}
+                      onClick={() => applyTemplate(template)}
+                      className="w-full p-2 bg-zinc-800 hover:bg-zinc-700 rounded text-left transition-colors group"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div 
+                          className="w-12 h-8 rounded flex-shrink-0 flex items-center justify-center text-[8px] text-white/60"
+                          style={{ backgroundColor: bgLayer?.fill || '#1a1a2e' }}
+                        >
+                          {template.category.slice(0, 3).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-medium text-white truncate group-hover:text-brand-400">
+                            {template.name}
+                          </div>
+                          <div className="text-[9px] text-zinc-500 truncate">
+                            {template.layers.length} layers
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Add Buttons */}
           <div className="grid grid-cols-2 gap-1">
             <button

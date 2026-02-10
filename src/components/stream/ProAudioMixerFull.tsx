@@ -27,6 +27,8 @@ interface AudioSource {
   routeRecord: boolean;
   meterLevel: number; // 0-100 for display
   meterPeak: number;
+  hasSignal: boolean;  // TRUE ONLY when real audio detected
+  stream?: MediaStream; // Actual audio stream connection
 }
 
 interface MasterState {
@@ -38,6 +40,7 @@ interface MasterState {
   limiterActive: boolean;
   muted: boolean;
   monitorEnabled: boolean;
+  hasSignal: boolean; // TRUE only when real audio detected
 }
 
 // ============================================================================
@@ -131,7 +134,13 @@ function RotaryKnob({
 // VU METER COMPONENT  
 // ============================================================================
 
-function VUMeter({ level, peak, vertical = true }: { level: number; peak: number; vertical?: boolean }) {
+function VUMeter({ level, peak, vertical = true, hasSignal = false, inactive = false }: { 
+  level: number; 
+  peak: number; 
+  vertical?: boolean;
+  hasSignal?: boolean;
+  inactive?: boolean;
+}) {
   const segments = 20;
   const levelSegments = Math.floor((level / 100) * segments);
   const peakSegment = Math.floor((peak / 100) * segments);
@@ -139,8 +148,19 @@ function VUMeter({ level, peak, vertical = true }: { level: number; peak: number
   return (
     <div className={`flex ${vertical ? 'flex-col-reverse' : 'flex-row'} gap-0.5`}>
       {Array.from({ length: segments }).map((_, i) => {
-        const isLit = i < levelSegments;
-        const isPeak = i === peakSegment;
+        const isLit = hasSignal && i < levelSegments;
+        const isPeak = hasSignal && i === peakSegment && peak > 0;
+        
+        // Gray out inactive meters
+        if (inactive || !hasSignal) {
+          return (
+            <div 
+              key={i} 
+              className={`${vertical ? 'w-full h-1.5' : 'w-2 h-full'} rounded-sm bg-zinc-800 opacity-30`}
+            />
+          );
+        }
+        
         let color = 'bg-zinc-700';
         
         if (isLit || isPeak) {
@@ -241,10 +261,24 @@ function ChannelStrip({
         <span className="text-[10px] text-white font-medium truncate flex-1">{source.name}</span>
       </div>
 
+      {/* Signal Indicator */}
+      <div className={`w-full py-0.5 text-center text-[8px] font-bold rounded ${
+        source.hasSignal 
+          ? 'bg-green-600/20 text-green-400 border border-green-500/50' 
+          : 'bg-zinc-800 text-zinc-600 border border-zinc-700/50'
+      }`}>
+        {source.hasSignal ? '● SIGNAL' : '○ NO SIGNAL'}
+      </div>
+
       {/* Input Meter */}
       <div className="w-full h-24 flex justify-center">
         <div className="w-3">
-          <VUMeter level={source.meterLevel} peak={source.meterPeak} />
+          <VUMeter 
+            level={source.meterLevel} 
+            peak={source.meterPeak} 
+            hasSignal={source.hasSignal}
+            inactive={source.muted || !source.stream}
+          />
         </div>
       </div>
 
@@ -334,15 +368,38 @@ function MasterSection({ master, onUpdate }: { master: MasterState; onUpdate: (u
     <div className="flex flex-col items-center gap-3 p-3 bg-zinc-900 rounded-lg border border-zinc-700">
       <div className="text-xs font-bold text-white uppercase tracking-wider">Master</div>
       
+      {/* Signal Indicator */}
+      <div className={`w-full py-0.5 text-center text-[8px] font-bold rounded ${
+        master.hasSignal 
+          ? 'bg-green-600/20 text-green-400 border border-green-500/50' 
+          : 'bg-zinc-800 text-zinc-600 border border-zinc-700/50'
+      }`}>
+        {master.hasSignal ? '● OUTPUT' : '○ SILENT'}
+      </div>
+      
       {/* Stereo VU Meters */}
       <div className="flex gap-1 h-40">
         <div className="flex flex-col items-center">
           <span className="text-[8px] text-zinc-500 mb-1">L</span>
-          <div className="w-4"><VUMeter level={master.meterL} peak={master.peakL} /></div>
+          <div className="w-4">
+            <VUMeter 
+              level={master.meterL} 
+              peak={master.peakL}
+              hasSignal={master.hasSignal}
+              inactive={master.muted}
+            />
+          </div>
         </div>
         <div className="flex flex-col items-center">
           <span className="text-[8px] text-zinc-500 mb-1">R</span>
-          <div className="w-4"><VUMeter level={master.meterR} peak={master.peakR} /></div>
+          <div className="w-4">
+            <VUMeter 
+              level={master.meterR} 
+              peak={master.peakR}
+              hasSignal={master.hasSignal}
+              inactive={master.muted}
+            />
+          </div>
         </div>
       </div>
 
@@ -380,6 +437,12 @@ function MasterSection({ master, onUpdate }: { master: MasterState; onUpdate: (u
 // ============================================================================
 
 export default function ProAudioMixerFull({ className = '' }: { className?: string }) {
+  // Audio context and analysers for REAL metering
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analysersRef = useRef<Map<string, AnalyserNode>>(new Map());
+  const masterAnalyserRef = useRef<AnalyserNode | null>(null);
+  const NOISE_FLOOR_DB = -60; // Signals below this are silence
+  
   const [sources, setSources] = useState<AudioSource[]>([
     {
       id: 'cam1',
@@ -402,6 +465,8 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
       routeRecord: true,
       meterLevel: 0,
       meterPeak: 0,
+      hasSignal: false,
+      stream: undefined,
     },
     {
       id: 'mic1',
@@ -424,6 +489,8 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
       routeRecord: true,
       meterLevel: 0,
       meterPeak: 0,
+      hasSignal: false,
+      stream: undefined,
     },
     {
       id: 'screen',
@@ -446,6 +513,8 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
       routeRecord: true,
       meterLevel: 0,
       meterPeak: 0,
+      hasSignal: false,
+      stream: undefined,
     },
     {
       id: 'media',
@@ -468,6 +537,8 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
       routeRecord: true,
       meterLevel: 0,
       meterPeak: 0,
+      hasSignal: false,
+      stream: undefined,
     },
   ]);
 
@@ -480,40 +551,127 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
     limiterActive: false,
     muted: false,
     monitorEnabled: true,
+    hasSignal: false,
   });
 
-  // Simulate meter animation
+  // Helper: Calculate RMS level from analyser data
+  const calculateLevel = useCallback((analyser: AnalyserNode | null): { level: number; hasSignal: boolean } => {
+    if (!analyser) return { level: 0, hasSignal: false };
+    
+    const dataArray = new Float32Array(analyser.frequencyBinCount);
+    analyser.getFloatTimeDomainData(dataArray);
+    
+    // Calculate RMS
+    let sum = 0;
+    let peak = 0;
+    for (const sample of dataArray) {
+      const abs = Math.abs(sample);
+      if (abs > peak) peak = abs;
+      sum += sample * sample;
+    }
+    const rms = Math.sqrt(sum / dataArray.length);
+    
+    // Convert to dB
+    const rmsDb = rms > 0 ? 20 * Math.log10(rms) : -100;
+    
+    // Only show signal if above noise floor
+    if (rmsDb < NOISE_FLOOR_DB) {
+      return { level: 0, hasSignal: false };
+    }
+    
+    // Map -60dB to 0dB -> 0 to 100
+    const level = Math.max(0, Math.min(100, (rmsDb + 60) * (100 / 60)));
+    return { level, hasSignal: true };
+  }, [NOISE_FLOOR_DB]);
+
+  // Real meter updates - only moves when there's actual signal
   useEffect(() => {
     const interval = setInterval(() => {
       setSources(prev => prev.map(s => {
-        if (s.muted) return { ...s, meterLevel: 0, meterPeak: Math.max(0, s.meterPeak - 2) };
-        const baseLevel = (s.fader / 100) * 70;
-        const variance = Math.random() * 20;
-        const newLevel = Math.min(100, baseLevel + variance);
+        // If muted or no stream, meters show nothing
+        if (s.muted || !s.stream) {
+          return { 
+            ...s, 
+            meterLevel: 0, 
+            meterPeak: Math.max(0, s.meterPeak - 3), // Peak decay
+            hasSignal: false 
+          };
+        }
+        
+        // Check if MediaStreamTrack is live
+        const tracks = s.stream.getAudioTracks();
+        if (tracks.length === 0 || tracks[0].readyState !== 'live') {
+          return { 
+            ...s, 
+            meterLevel: 0, 
+            meterPeak: Math.max(0, s.meterPeak - 3),
+            hasSignal: false 
+          };
+        }
+
+        // Get real level from analyser
+        const analyser = analysersRef.current.get(s.id);
+        const { level, hasSignal } = calculateLevel(analyser || null);
+        
         return {
           ...s,
-          meterLevel: newLevel,
-          meterPeak: Math.max(newLevel, s.meterPeak - 1),
+          meterLevel: level,
+          meterPeak: Math.max(level, s.meterPeak - 1), // Peak hold with decay
+          hasSignal,
         };
       }));
 
+      // Update master meters
       setMaster(prev => {
-        if (prev.muted) return { ...prev, meterL: 0, meterR: 0, peakL: Math.max(0, prev.peakL - 2), peakR: Math.max(0, prev.peakR - 2) };
-        const baseLevel = (prev.level / 100) * 75;
-        const newL = Math.min(100, baseLevel + Math.random() * 15);
-        const newR = Math.min(100, baseLevel + Math.random() * 15);
+        if (prev.muted) {
+          return { 
+            ...prev, 
+            meterL: 0, 
+            meterR: 0, 
+            peakL: Math.max(0, prev.peakL - 3),
+            peakR: Math.max(0, prev.peakR - 3),
+            hasSignal: false,
+            limiterActive: false
+          };
+        }
+        
+        const { level, hasSignal } = calculateLevel(masterAnalyserRef.current);
+        
         return {
           ...prev,
-          meterL: newL,
-          meterR: newR,
-          peakL: Math.max(newL, prev.peakL - 1),
-          peakR: Math.max(newR, prev.peakR - 1),
-          limiterActive: newL > 95 || newR > 95,
+          meterL: level,
+          meterR: level * (0.95 + Math.random() * 0.1), // Slight stereo variation
+          peakL: Math.max(level, prev.peakL - 1),
+          peakR: Math.max(level, prev.peakR - 1),
+          limiterActive: level > 95,
+          hasSignal,
         };
       });
-    }, 50);
+    }, 33); // ~30fps metering
 
     return () => clearInterval(interval);
+  }, [calculateLevel]);
+
+  // Connect audio stream to analyser when source has stream
+  const connectStreamToAnalyser = useCallback((sourceId: string, stream: MediaStream) => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext({ sampleRate: 48000 });
+    }
+    
+    const ctx = audioContextRef.current;
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.5;
+    
+    const source = ctx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    
+    analysersRef.current.set(sourceId, analyser);
+    
+    // Update source with stream reference
+    setSources(prev => prev.map(s => 
+      s.id === sourceId ? { ...s, stream, hasSignal: false } : s
+    ));
   }, []);
 
   const handleSourceUpdate = useCallback((id: string, updates: Partial<AudioSource>) => {
@@ -531,6 +689,14 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
         <div className="flex items-center gap-3">
           <span className="text-sm font-bold text-white">🎛️ Audio Mixer</span>
           <span className="text-[10px] text-zinc-500">{sources.length} Sources</span>
+          {/* Global Signal Status */}
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+            sources.some(s => s.hasSignal) 
+              ? 'bg-green-600/20 text-green-400' 
+              : 'bg-zinc-800 text-zinc-600'
+          }`}>
+            {sources.some(s => s.hasSignal) ? '● SIGNAL' : '○ NO INPUT'}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button className="px-2 py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded">

@@ -1,5 +1,6 @@
 // ─── User & Auth Types ───────────────────────────────────────────────
 export type UserRole = 'viewer' | 'creator' | 'admin' | 'network_operator';
+export type UserTier = 'guest' | 'free' | 'creator' | 'pro' | 'enterprise';
 
 export interface User {
   id: string;
@@ -7,9 +8,12 @@ export interface User {
   display_name: string;
   avatar_url: string | null;
   role: UserRole;
+  tier?: UserTier;
+  global_admin?: boolean;
   created_at: string;
   updated_at: string;
   is_verified: boolean;
+  is_suspended?: boolean;
   metadata: Record<string, unknown>;
 }
 
