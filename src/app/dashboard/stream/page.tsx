@@ -16,12 +16,18 @@ import { useGlobalShortcuts } from '@/components/stream/useGlobalShortcuts';
 import { OverlayControlPanel } from '@/components/stream/overlays/OverlayControlPanel';
 import { DestinationManager } from '@/components/stream/destinations/DestinationManager';
 
+// Pro Studio Components
+import '@/styles/pro-mixer.css';
+import CompositionSwitcher from '@/components/stream/CompositionSwitcher';
+import ProSoundboard from '@/components/stream/ProSoundboard';
+import { ParticipantList, CuePanel, RoleBadge } from '@/components/stream/CollaborativeControls';
+
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type LeftPanel = 'devices' | 'scenes' | 'audio' | 'graphics' | 'overlays' | 'destinations';
-type RightPanel = 'chat' | 'stats';
+type LeftPanel = 'devices' | 'scenes' | 'audio' | 'graphics' | 'overlays' | 'destinations' | 'compositions';
+type RightPanel = 'chat' | 'stats' | 'soundboard' | 'collab';
 
 type ChatMessage = {
   id: string;
@@ -285,7 +291,7 @@ export default function StreamStudioPage() {
     }
   };
 
-  return (<div className="h-[calc(100vh-4rem)] flex flex-col -m-6 -mt-0">
+  return (<div className="pro-mixer h-[calc(100vh-4rem)] flex flex-col -m-6 -mt-0">
       {/* Top Bar */}
       <div className="flex items-center justify-between px-2 md:px-4 py-2.5 bg-surface-900 border-b border-surface-700/50">
         <div className="flex items-center gap-2 md:gap-3">
@@ -327,7 +333,7 @@ export default function StreamStudioPage() {
         <div className="w-full md:w-80 bg-surface-900/80 border-r border-surface-700/50 flex flex-col md:max-h-none max-h-48">
           {/* Panel Tabs */}
           <div className="flex border-b border-surface-700/50 overflow-x-auto">
-            {(['devices', 'scenes', 'audio', 'graphics', 'overlays', 'destinations'] as LeftPanel[]).map((tab) => (
+            {(['devices', 'scenes', 'audio', 'graphics', 'overlays', 'destinations', 'compositions'] as LeftPanel[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setLeftPanel(tab)}
@@ -579,6 +585,13 @@ export default function StreamStudioPage() {
                 <DestinationManager />
               </div>
             )}
+            
+            {/* COMPOSITIONS PANEL - Scene Switching */}
+            {leftPanel === 'compositions' && (
+              <div className="space-y-4">
+                <CompositionSwitcher />
+              </div>
+            )}
           </div>
         </div>
 
@@ -694,7 +707,7 @@ export default function StreamStudioPage() {
         <div className="w-full md:w-80 bg-surface-900/80 border-l border-surface-700/50 flex flex-col md:max-h-none max-h-64 hidden md:flex">
           {/* Panel Tabs */}
           <div className="flex border-b border-surface-700/50">
-            {(['chat', 'stats'] as RightPanel[]).map((tab) => (
+            {(['chat', 'stats', 'soundboard', 'collab'] as RightPanel[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setRightPanel(tab)}
@@ -740,6 +753,27 @@ export default function StreamStudioPage() {
                 <div>
                   <p className="text-xs font-medium text-surface-400 mb-1">Active Scenes</p>
                   <p className="text-white">{stream.scenes.length}</p>
+                </div>
+              </div>
+            )}
+            
+            {/* SOUNDBOARD PANEL */}
+            {rightPanel === 'soundboard' && (
+              <div className="p-3 overflow-y-auto h-full">
+                <ProSoundboard />
+              </div>
+            )}
+            
+            {/* COLLABORATION PANEL */}
+            {rightPanel === 'collab' && (
+              <div className="p-3 space-y-4 overflow-y-auto h-full">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-xs font-medium text-white">Team</h3>
+                  <RoleBadge role="host" />
+                </div>
+                <ParticipantList />
+                <div className="border-t border-surface-700/50 pt-3">
+                  <CuePanel />
                 </div>
               </div>
             )}
