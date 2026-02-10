@@ -130,6 +130,7 @@ export default function StreamStudioPage() {
     
     // Load existing chat messages
     const loadMessages = async () => {
+      console.log('💬 Loading existing chat messages for stream:', stream.streamId);
       const { data: messages, error } = await supabase
         .from('chat_messages')
         .select('id, message, created_at, user_id, profiles:user_id (display_name, email)')
@@ -137,7 +138,13 @@ export default function StreamStudioPage() {
         .order('created_at', { ascending: true })
         .limit(100);
       
-      if (!error && messages) {
+      if (error) {
+        console.error('❌ Failed to load chat messages:', error);
+        return;
+      }
+      
+      if (messages) {
+        console.log('✅ Loaded', messages.length, 'existing messages');
         const formatted = messages.map((msg: any) => ({
           id: msg.id,
           username: msg.profiles?.display_name || msg.profiles?.email?.split('@')[0] || 'Anonymous',
@@ -152,8 +159,9 @@ export default function StreamStudioPage() {
     loadMessages();
     
     // Subscribe to real-time chat updates
+    console.log('🔔 Subscribing to real-time chat for stream:', stream.streamId);
     const channel = supabase
-      .channel(`chat:${stream.streamId}`)
+      .channel(`realtime-chat-${stream.streamId}`)
       .on(
         'postgres_changes',
         {
@@ -163,6 +171,7 @@ export default function StreamStudioPage() {
           filter: `stream_id=eq.${stream.streamId}`
         },
         async (payload) => {
+          console.log('📨 New chat message received:', payload);
           // Fetch user profile for the new message
           const { data: profile } = await supabase
             .from('profiles')
@@ -181,7 +190,9 @@ export default function StreamStudioPage() {
           setChatMessages(prev => [...prev, newMsg]);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Real-time subscription status:', status);
+      });
     
     return () => {
       supabase.removeChannel(channel);
@@ -243,22 +254,34 @@ export default function StreamStudioPage() {
   // State changes must come from user interaction ONLY
 
   const handleSendMessage = async (message: string) => {
-    if (!stream.streamId) return;
+    if (!stream.streamId) {
+      console.error('❌ Cannot send message - no stream ID');
+      return;
+    }
     
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      console.error('❌ Cannot send message - not authenticated');
+      return;
+    }
+    
+    console.log('📤 Sending message to stream:', stream.streamId);
     
     // Insert message into Supabase (real-time subscription will update UI)
-    const { error } = await supabase
+    const { error, data } = await supabase
       .from('chat_messages')
       .insert({
         stream_id: stream.streamId,
         user_id: user.id,
         message: message.trim()
-      });
+      })
+      .select()
+      .single();
     
     if (error) {
-      console.error('Failed to send message:', error);
+      console.error('❌ Failed to send message:', error);
+    } else {
+      console.log('✅ Message sent successfully:', data?.id);
     }
   };
 

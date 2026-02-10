@@ -129,6 +129,7 @@ export default function WatchStreamPage() {
     
     // Load existing chat messages
     const loadMessages = async () => {
+      console.log('💬 Loading existing chat messages for stream:', stream.id);
       const { data: messages, error } = await supabase
         .from('chat_messages')
         .select('id, message, created_at, user_id, profiles:user_id (display_name, email)')
@@ -136,7 +137,13 @@ export default function WatchStreamPage() {
         .order('created_at', { ascending: true })
         .limit(100);
       
-      if (!error && messages) {
+      if (error) {
+        console.error('❌ Failed to load chat messages:', error);
+        return;
+      }
+      
+      if (messages) {
+        console.log('✅ Loaded', messages.length, 'existing messages');
         const formatted = messages.map((msg: any) => ({
           id: msg.id,
           username: msg.profiles?.display_name || msg.profiles?.email?.split('@')[0] || 'Anonymous',
@@ -151,8 +158,9 @@ export default function WatchStreamPage() {
     loadMessages();
     
     // Subscribe to real-time chat updates
+    console.log('🔔 Subscribing to real-time chat for stream:', stream.id);
     const channel = supabase
-      .channel(`chat:${stream.id}`)
+      .channel(`realtime-chat-${stream.id}`)
       .on(
         'postgres_changes',
         {
@@ -162,6 +170,7 @@ export default function WatchStreamPage() {
           filter: `stream_id=eq.${stream.id}`
         },
         async (payload) => {
+          console.log('📨 New chat message received:', payload);
           // Fetch user profile for the new message
           const { data: profile } = await supabase
             .from('profiles')
@@ -180,7 +189,9 @@ export default function WatchStreamPage() {
           setChatMessages(prev => [...prev, newMsg]);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 Real-time subscription status:', status);
+      });
     
     return () => {
       supabase.removeChannel(channel);
@@ -381,22 +392,36 @@ export default function WatchStreamPage() {
   // ============================================================================
   
   const handleSendMessage = async (message: string) => {
-    if (!stream) return;
+    if (!stream) {
+      console.error('❌ Cannot send message - no stream');
+      return;
+    }
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+      console.error('❌ Cannot send message - not authenticated');
       router.push('/auth/login');
       return;
     }
     
+    console.log('📤 Sending message to stream:', stream.id);
+    
     // Insert message into Supabase (real-time subscription will update UI)
-    const { error } = await supabase
+    const { error, data } = await supabase
       .from('chat_messages')
       .insert({
         stream_id: stream.id,
         user_id: user.id,
         message: message.trim()
-      });
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Failed to send message:', error);
+    } else {
+      console.log('✅ Message sent successfully:', data?.id);
+    }
     
     if (error) {
       console.error('Failed to send message:', error);
@@ -447,10 +472,25 @@ export default function WatchStreamPage() {
             <video
               ref={videoRef}
               autoPlay
+              muted
               playsInline
               controls
               className="w-full h-full bg-black"
             />
+            
+            {/* Unmute button overlay */}
+            <div className="absolute bottom-20 right-4">
+              <button
+                onClick={() => {
+                  if (videoRef.current) {
+                    videoRef.current.muted = false;
+                  }
+                }}
+                className="px-4 py-2 bg-black/70 backdrop-blur-sm text-white text-sm rounded-lg hover:bg-black/90 transition-colors"
+              >
+                🔊 Unmute
+              </button>
+            </div>
             
             <div className="absolute top-4 left-4 flex items-center gap-2">
               {stream.status === 'live' && (

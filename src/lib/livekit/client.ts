@@ -172,10 +172,23 @@ export class LiveKitClient {
   ) {
     if (!this.room) return;
     
+    console.log('🎬 Setting up track subscription...');
+    console.log('📊 Remote participants:', this.room.remoteParticipants.size);
+    
     // Subscribe to existing tracks from remote participants
     this.room.remoteParticipants.forEach((participant: RemoteParticipant) => {
-      participant.trackPublications.forEach((publication: any) => {
+      console.log('👤 Remote participant:', participant.identity, 'tracks:', participant.trackPublications.size);
+      participant.trackPublications.forEach((publication) => {
+        console.log('📡 Track publication:', publication.trackSid, 'kind:', publication.kind, 'subscribed:', publication.isSubscribed, 'hasTrack:', !!publication.track);
+        
+        // Ensure we're subscribed to the track
+        if (!publication.isSubscribed) {
+          console.log('⏳ Subscribing to track...', publication.trackSid);
+          publication.setSubscribed(true);
+        }
+        
         if (publication.track) {
+          console.log('✅ Delivering existing track:', publication.kind);
           onTrackReceived(publication.track, participant);
         }
       });
@@ -183,7 +196,27 @@ export class LiveKitClient {
     
     // Subscribe to future tracks
     this.room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      console.log('🎉 TrackSubscribed event:', track.kind, 'from', participant.identity);
       onTrackReceived(track, participant);
+    });
+    
+    // Also listen for when new participants join with tracks
+    this.room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
+      console.log('👋 New participant joined:', participant.identity);
+      participant.trackPublications.forEach((publication) => {
+        if (!publication.isSubscribed) {
+          publication.setSubscribed(true);
+        }
+      });
+    });
+    
+    // Handle track published events (when broadcaster publishes new tracks)
+    this.room.on(RoomEvent.TrackPublished, (publication, participant) => {
+      console.log('📢 Track published:', publication.kind, 'by', participant.identity);
+      if (participant instanceof RemoteParticipant && !publication.isSubscribed) {
+        console.log('⏳ Auto-subscribing to new published track');
+        (publication as any).setSubscribed(true);
+      }
     });
   }
   
