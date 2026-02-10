@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 
@@ -17,10 +18,10 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClient();
   
   useEffect(() => {
-    const supabase = createClient();
-    
     // Check initial auth state
     supabase.auth.getUser().then(({ data: { user } }) => {
       setIsLoggedIn(!!user);
@@ -33,7 +34,13 @@ export default function Navbar() {
     });
     
     return () => subscription.unsubscribe();
-  }, []);
+  }, [supabase.auth]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setIsLoggedIn(false);
+    router.push('/');
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50">
@@ -64,9 +71,12 @@ export default function Navbar() {
             {isLoading ? (
               <div className="w-20 h-8 bg-surface-800 rounded-lg animate-pulse" />
             ) : isLoggedIn ? (
-              <Link href="/dashboard">
-                <Button size="sm">Dashboard</Button>
-              </Link>
+              <>
+                <Link href="/dashboard">
+                  <Button size="sm">Dashboard</Button>
+                </Link>
+                <Button variant="ghost" size="sm" onClick={handleSignOut}>Sign Out</Button>
+              </>
             ) : (
               <>
                 <Link href="/auth/login">
@@ -109,9 +119,12 @@ export default function Navbar() {
               ))}
               <div className="mt-4 pt-4 border-t border-surface-800/50 flex flex-col gap-2">
                 {isLoggedIn ? (
-                  <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
-                    <Button fullWidth size="sm">Dashboard</Button>
-                  </Link>
+                  <>
+                    <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
+                      <Button fullWidth size="sm">Dashboard</Button>
+                    </Link>
+                    <Button variant="outline" fullWidth size="sm" onClick={() => { handleSignOut(); setMobileOpen(false); }}>Sign Out</Button>
+                  </>
                 ) : (
                   <>
                     <Link href="/auth/login" onClick={() => setMobileOpen(false)}>
