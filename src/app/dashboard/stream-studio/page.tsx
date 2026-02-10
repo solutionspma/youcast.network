@@ -491,7 +491,7 @@ export default function ProStreamStudioPage() {
                 <div className="text-center">
                   <div className="text-4xl mb-2">📹</div>
                   <p className="text-white font-medium">Stream Offline</p>
-                  <p className="text-sm text-zinc-400 mt-1">Click "Start Preview" to begin</p>
+                  <p className="text-sm text-zinc-400 mt-1">Click &quot;Start Preview&quot; to begin</p>
                 </div>
               </div>
             )}
