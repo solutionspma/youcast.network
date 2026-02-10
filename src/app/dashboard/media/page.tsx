@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -261,6 +261,10 @@ export default function MediaLibraryPage() {
   const [streams, setStreams] = useState<StreamItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalSize, setTotalSize] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [channelId, setChannelId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function fetchMedia() {
@@ -285,20 +289,21 @@ export default function MediaLibraryPage() {
           return;
         }
 
-        const channelId = channels[0].id;
+        const channelIdValue = channels[0].id;
+        setChannelId(channelIdValue);
 
         // Get media items
         const { data: media } = await supabase
           .from('media')
           .select('id, title, type, status, views, duration, file_size, created_at')
-          .eq('channel_id', channelId)
+          .eq('channel_id', channelIdValue)
           .order('created_at', { ascending: false });
 
         // Get streams
         const { data: streamData } = await supabase
           .from('streams')
           .select('id, title, status, thumbnail_url, viewer_count, total_views, started_at, ended_at, created_at')
-          .eq('channel_id', channelId)
+          .eq('channel_id', channelIdValue)
           .order('created_at', { ascending: false });
 
         if (media) {
@@ -376,6 +381,97 @@ export default function MediaLibraryPage() {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !channelId) {
+      alert('Please select a file');
+      return;
+    }
+
+    const supabase = createClient();
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Determine file type
+      const fileType = file.type.startsWith('video/') ? 'video' : 
+                       file.type.startsWith('audio/') ? 'audio' : 'other';
+      
+      // Create unique file path
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${channelId}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+      
+      // Upload to Supabase Storage
+      setUploadProgress(10);
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      setUploadProgress(70);
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('media')
+        .getPublicUrl(fileName);
+
+      // Create media record in database
+      const { data: mediaRecord, error: dbError } = await supabase
+        .from('media')
+        .insert({
+          channel_id: channelId,
+          title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension
+          type: fileType,
+          status: 'processing',
+          file_size: file.size,
+          file_url: publicUrl,
+          views: 0,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      setUploadProgress(100);
+      
+      // Add to local state
+      setMediaLibrary(prev => [mediaRecord, ...prev]);
+      setTotalSize(prev => prev + file.size);
+      
+      // Update status to ready after a short delay (simulating processing)
+      setTimeout(async () => {
+        await supabase
+          .from('media')
+          .update({ status: 'ready' })
+          .eq('id', mediaRecord.id);
+        
+        setMediaLibrary(prev => prev.map(m => 
+          m.id === mediaRecord.id ? { ...m, status: 'ready' } : m
+        ));
+      }, 2000);
+
+      alert('Upload complete!');
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      alert('Upload failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -405,11 +501,31 @@ export default function MediaLibraryPage() {
             </svg>
             Filter
           </Button>
-          <Button size="sm">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            Upload
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*,audio/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <Button 
+            size="sm" 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || !channelId}
+          >
+            {uploading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                {uploadProgress}%
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Upload
+              </>
+            )}
           </Button>
         </div>
       </div>
