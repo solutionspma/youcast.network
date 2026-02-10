@@ -22,6 +22,7 @@ type StreamItem = {
   id: string;
   title: string;
   status: string;
+  thumbnail_url: string | null;
   viewer_count: number;
   total_views: number;
   started_at: string | null;
@@ -38,7 +39,9 @@ const statusColors: Record<string, 'success' | 'warning' | 'info' | 'danger' | '
   failed: 'danger',
 };
 
-function StreamsTable({ items }: { items: StreamItem[] }) {
+function StreamsTable({ items, onDelete }: { items: StreamItem[]; onDelete: (id: string) => void }) {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -54,6 +57,13 @@ function StreamsTable({ items }: { items: StreamItem[] }) {
     const mins = diffMins % 60;
     if (hours > 0) return `${hours}h ${mins}m`;
     return `${mins}m`;
+  };
+  
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this stream? This cannot be undone.')) return;
+    setDeletingId(id);
+    await onDelete(id);
+    setDeletingId(null);
   };
 
   const statusColors: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
@@ -88,14 +98,16 @@ function StreamsTable({ items }: { items: StreamItem[] }) {
         </thead>
         <tbody className="divide-y divide-surface-700/50">
           {items.map((item) => (
-            <tr key={item.id} className="hover:bg-surface-800/50 transition-colors">
+            <tr key={item.id} className={`hover:bg-surface-800/50 transition-colors ${deletingId === item.id ? 'opacity-50' : ''}`}>
               <td className="px-4 py-3.5">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-8 rounded bg-surface-700 flex items-center justify-center flex-shrink-0">
-                    {item.status === 'live' ? (
+                  <div className="w-16 h-10 rounded bg-surface-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {item.thumbnail_url ? (
+                      <img src={item.thumbnail_url} alt={item.title} className="w-full h-full object-cover" />
+                    ) : item.status === 'live' ? (
                       <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                     ) : (
-                      <svg className="w-4 h-4 text-surface-500" viewBox="0 0 24 24" fill="currentColor">
+                      <svg className="w-5 h-5 text-surface-500" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     )}
@@ -113,15 +125,28 @@ function StreamsTable({ items }: { items: StreamItem[] }) {
               <td className="px-4 py-3.5 text-sm text-surface-400">{formatDuration(item.started_at, item.ended_at)}</td>
               <td className="px-4 py-3.5 text-sm text-surface-500">{formatDate(item.started_at || item.created_at)}</td>
               <td className="px-4 py-3.5">
-                <a 
-                  href={`/watch/${item.id}`} 
-                  target="_blank" 
-                  className="p-1 rounded hover:bg-surface-700 text-surface-400 hover:text-white transition-colors inline-block"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
+                <div className="flex items-center gap-1">
+                  <a 
+                    href={`/watch/${item.id}`} 
+                    target="_blank" 
+                    className="p-1.5 rounded hover:bg-surface-700 text-surface-400 hover:text-white transition-colors"
+                    title="View stream"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  <button 
+                    onClick={() => handleDelete(item.id)}
+                    disabled={deletingId === item.id || item.status === 'live'}
+                    className="p-1.5 rounded hover:bg-red-500/20 text-surface-400 hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={item.status === 'live' ? "Can't delete live stream" : "Delete stream"}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
@@ -251,7 +276,7 @@ export default function MediaLibraryPage() {
         // Get streams
         const { data: streamData } = await supabase
           .from('streams')
-          .select('id, title, status, viewer_count, total_views, started_at, ended_at, created_at')
+          .select('id, title, status, thumbnail_url, viewer_count, total_views, started_at, ended_at, created_at')
           .eq('channel_id', channelId)
           .order('created_at', { ascending: false });
 
@@ -277,6 +302,28 @@ export default function MediaLibraryPage() {
   const formatStorageSize = (bytes: number) => {
     const gb = bytes / (1024 * 1024 * 1024);
     return gb.toFixed(1);
+  };
+
+  const handleDeleteStream = async (id: string) => {
+    const supabase = createClient();
+    try {
+      const { error } = await supabase
+        .from('streams')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('Error deleting stream:', error);
+        alert('Failed to delete stream: ' + error.message);
+        return;
+      }
+      
+      // Remove from local state
+      setStreams(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Error deleting stream:', err);
+      alert('Failed to delete stream');
+    }
   };
 
   if (loading) {
@@ -324,7 +371,7 @@ export default function MediaLibraryPage() {
             label: `Live Streams (${streams.length})`,
             content: (
               <Card variant="default" padding="none">
-                <StreamsTable items={streams} />
+                <StreamsTable items={streams} onDelete={handleDeleteStream} />
               </Card>
             ),
           },

@@ -929,6 +929,60 @@ export function useStream(channelId?: string) {
     };
   }, [enumerateDevices]);
   
+  // ============================================================================
+  // REAL-TIME VIEWER COUNT SUBSCRIPTION
+  // ============================================================================
+  
+  useEffect(() => {
+    if (!streamId || status !== 'live') {
+      return;
+    }
+    
+    console.log('📊 Subscribing to viewer count for stream:', streamId);
+    const supabase = createClient();
+    
+    // Get initial viewer count
+    const fetchViewerCount = async () => {
+      const { count, error } = await supabase
+        .from('view_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('stream_id', streamId)
+        .is('ended_at', null);
+      
+      if (!error && count !== null) {
+        console.log('👁️ Current viewer count:', count);
+        setViewerCount(count);
+      }
+    };
+    
+    fetchViewerCount();
+    
+    // Subscribe to real-time viewer count updates
+    const channel = supabase
+      .channel(`stream-viewers-${streamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'view_events',
+          filter: `stream_id=eq.${streamId}`,
+        },
+        async () => {
+          // Re-fetch the count when view events change
+          await fetchViewerCount();
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Viewer count subscription status:', status);
+      });
+    
+    return () => {
+      console.log('🔕 Unsubscribing from viewer count');
+      supabase.removeChannel(channel);
+    };
+  }, [streamId, status]);
+
   // Initialize default scene
   useEffect(() => {
     if (scenes.length === 0) {
