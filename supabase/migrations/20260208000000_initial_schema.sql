@@ -76,8 +76,8 @@ ALTER TABLE channels ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Channels are viewable by everyone" ON channels FOR SELECT USING (true);
 CREATE POLICY "Creators can manage own channels" ON channels FOR ALL USING (auth.uid() = creator_id);
 
-CREATE INDEX idx_channels_creator ON channels(creator_id);
-CREATE INDEX idx_channels_handle ON channels(handle);
+CREATE INDEX IF NOT EXISTS idx_channels_creator ON channels(creator_id);
+CREATE INDEX IF NOT EXISTS idx_channels_handle ON channels(handle);
 
 -- ============================================================================
 -- 3. STREAMS
@@ -112,8 +112,8 @@ CREATE POLICY "Creators can manage own streams" ON streams FOR ALL USING (
   )
 );
 
-CREATE INDEX idx_streams_channel ON streams(channel_id);
-CREATE INDEX idx_streams_status ON streams(status);
+CREATE INDEX IF NOT EXISTS idx_streams_channel ON streams(channel_id);
+CREATE INDEX IF NOT EXISTS idx_streams_status ON streams(status);
 
 -- ============================================================================
 -- 4. STREAM SCENES
@@ -176,8 +176,8 @@ CREATE POLICY "Creators can manage own media" ON media FOR ALL USING (
   )
 );
 
-CREATE INDEX idx_media_channel ON media(channel_id);
-CREATE INDEX idx_media_published ON media(published_at);
+CREATE INDEX IF NOT EXISTS idx_media_channel ON media(channel_id);
+CREATE INDEX IF NOT EXISTS idx_media_published ON media(published_at);
 
 -- ============================================================================
 -- 6. SUBSCRIPTIONS
@@ -201,8 +201,8 @@ CREATE POLICY "Users can view own subscriptions" ON subscriptions FOR SELECT USI
 CREATE POLICY "Users can create own subscriptions" ON subscriptions FOR INSERT WITH CHECK (auth.uid() = subscriber_id);
 CREATE POLICY "Users can update own subscriptions" ON subscriptions FOR UPDATE USING (auth.uid() = subscriber_id);
 
-CREATE INDEX idx_subscriptions_subscriber ON subscriptions(subscriber_id);
-CREATE INDEX idx_subscriptions_channel ON subscriptions(channel_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_subscriber ON subscriptions(subscriber_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_channel ON subscriptions(channel_id);
 
 -- ============================================================================
 -- 7. MONETIZATION - TRANSACTIONS
@@ -232,8 +232,8 @@ CREATE POLICY "Creators can view channel transactions" ON transactions FOR SELEC
   )
 );
 
-CREATE INDEX idx_transactions_user ON transactions(user_id);
-CREATE INDEX idx_transactions_channel ON transactions(channel_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_channel ON transactions(channel_id);
 
 -- ============================================================================
 -- 8. ANALYTICS - VIEW EVENTS
@@ -257,9 +257,9 @@ ALTER TABLE view_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view own view events" ON view_events FOR SELECT USING (auth.uid() = user_id);
 
-CREATE INDEX idx_view_events_media ON view_events(media_id);
-CREATE INDEX idx_view_events_stream ON view_events(stream_id);
-CREATE INDEX idx_view_events_created ON view_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_view_events_media ON view_events(media_id);
+CREATE INDEX IF NOT EXISTS idx_view_events_stream ON view_events(stream_id);
+CREATE INDEX IF NOT EXISTS idx_view_events_created ON view_events(created_at);
 
 -- ============================================================================
 -- 9. ANALYTICS - ENGAGEMENT EVENTS
@@ -277,9 +277,9 @@ CREATE TABLE IF NOT EXISTS engagement_events (
 
 ALTER TABLE engagement_events ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX idx_engagement_events_media ON engagement_events(media_id);
-CREATE INDEX idx_engagement_events_stream ON engagement_events(stream_id);
-CREATE INDEX idx_engagement_events_type ON engagement_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_engagement_events_media ON engagement_events(media_id);
+CREATE INDEX IF NOT EXISTS idx_engagement_events_stream ON engagement_events(stream_id);
+CREATE INDEX IF NOT EXISTS idx_engagement_events_type ON engagement_events(event_type);
 
 -- ============================================================================
 -- 10. SYSTEM SETTINGS
@@ -376,8 +376,8 @@ CREATE POLICY "Only admins can view admin actions" ON admin_actions FOR SELECT U
   )
 );
 
-CREATE INDEX idx_admin_actions_admin ON admin_actions(admin_id);
-CREATE INDEX idx_admin_actions_created ON admin_actions(created_at);
+CREATE INDEX IF NOT EXISTS idx_admin_actions_admin ON admin_actions(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_actions_created ON admin_actions(created_at);
 
 -- ============================================================================
 -- 13. NOTIFICATIONS
@@ -399,8 +399,8 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own notifications" ON notifications FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_unread ON notifications(user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, is_read);
 
 -- ============================================================================
 -- 14. STREAM HEALTH METRICS
@@ -430,8 +430,8 @@ CREATE POLICY "Creators can view own stream health" ON stream_health_metrics FOR
   )
 );
 
-CREATE INDEX idx_stream_health_stream ON stream_health_metrics(stream_id);
-CREATE INDEX idx_stream_health_created ON stream_health_metrics(created_at);
+CREATE INDEX IF NOT EXISTS idx_stream_health_stream ON stream_health_metrics(stream_id);
+CREATE INDEX IF NOT EXISTS idx_stream_health_created ON stream_health_metrics(created_at);
 
 -- ============================================================================
 -- 15. REVENUE SPLITS (For future white-label)

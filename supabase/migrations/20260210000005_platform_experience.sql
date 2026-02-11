@@ -69,33 +69,98 @@ CREATE TABLE IF NOT EXISTS user_favorites (
   creator_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   
   -- Timestamps
-  favorited_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  -- Type for easier querying
-  type TEXT GENERATED ALWAYS AS (
-    CASE 
-      WHEN media_id IS NOT NULL THEN 'media'
-      WHEN stream_id IS NOT NULL THEN 'stream'
-      WHEN video_id IS NOT NULL THEN 'video'
-      WHEN channel_id IS NOT NULL THEN 'channel'
-      WHEN creator_id IS NOT NULL THEN 'creator'
-    END
-  ) STORED
+  favorited_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_media 
-  ON user_favorites(user_id, media_id) WHERE media_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_stream 
-  ON user_favorites(user_id, stream_id) WHERE stream_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_video 
-  ON user_favorites(user_id, video_id) WHERE video_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_channel 
-  ON user_favorites(user_id, channel_id) WHERE channel_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_creator 
-  ON user_favorites(user_id, creator_id) WHERE creator_id IS NOT NULL;
+-- Add missing columns if table already exists
+DO $$
+BEGIN
+  -- Add media_id if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'user_favorites' AND column_name = 'media_id') THEN
+    ALTER TABLE user_favorites ADD COLUMN media_id UUID REFERENCES media(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add stream_id if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'user_favorites' AND column_name = 'stream_id') THEN
+    ALTER TABLE user_favorites ADD COLUMN stream_id UUID REFERENCES streams(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add video_id if missing  
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'user_favorites' AND column_name = 'video_id') THEN
+    ALTER TABLE user_favorites ADD COLUMN video_id UUID REFERENCES videos(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add channel_id if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'user_favorites' AND column_name = 'channel_id') THEN
+    ALTER TABLE user_favorites ADD COLUMN channel_id UUID REFERENCES channels(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add creator_id if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'user_favorites' AND column_name = 'creator_id') THEN
+    ALTER TABLE user_favorites ADD COLUMN creator_id UUID REFERENCES profiles(id) ON DELETE CASCADE;
+  END IF;
+  
+  -- Add favorited_at if missing
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'user_favorites' AND column_name = 'favorited_at') THEN
+    ALTER TABLE user_favorites ADD COLUMN favorited_at TIMESTAMPTZ DEFAULT NOW();
+  END IF;
+END $$;
+
+-- Add type computed column if supported (skip if error, generated columns may already exist)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'user_favorites' AND column_name = 'type') THEN
+    EXECUTE 'ALTER TABLE user_favorites ADD COLUMN type TEXT GENERATED ALWAYS AS (
+      CASE 
+        WHEN media_id IS NOT NULL THEN ''media''
+        WHEN stream_id IS NOT NULL THEN ''stream''
+        WHEN video_id IS NOT NULL THEN ''video''
+        WHEN channel_id IS NOT NULL THEN ''channel''
+        WHEN creator_id IS NOT NULL THEN ''creator''
+      END
+    ) STORED';
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  -- Skip if generated column fails (may already exist differently)
+  NULL;
+END $$;
+
+-- Unique indexes (skip if columns don't exist)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_favorites' AND column_name = 'media_id') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_media ON user_favorites(user_id, media_id) WHERE media_id IS NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_favorites' AND column_name = 'stream_id') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_stream ON user_favorites(user_id, stream_id) WHERE stream_id IS NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_favorites' AND column_name = 'video_id') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_video ON user_favorites(user_id, video_id) WHERE video_id IS NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_favorites' AND column_name = 'channel_id') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_channel ON user_favorites(user_id, channel_id) WHERE channel_id IS NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_favorites' AND column_name = 'creator_id') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_user_creator ON user_favorites(user_id, creator_id) WHERE creator_id IS NOT NULL;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_favorites_user ON user_favorites(user_id);
-CREATE INDEX IF NOT EXISTS idx_favorites_type ON user_favorites(type);
+
+-- Skip type index if column doesn't exist
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_favorites' AND column_name = 'type') THEN
+    CREATE INDEX IF NOT EXISTS idx_favorites_type ON user_favorites(type);
+  END IF;
+END $$;
 
 ALTER TABLE user_favorites ENABLE ROW LEVEL SECURITY;
 

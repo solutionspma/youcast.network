@@ -45,18 +45,18 @@ CREATE TABLE IF NOT EXISTS marketplace_items (
 );
 
 -- Indexes
-CREATE INDEX idx_marketplace_status ON marketplace_items(status);
-CREATE INDEX idx_marketplace_category ON marketplace_items(category);
-CREATE INDEX idx_marketplace_downloads ON marketplace_items(downloads DESC);
-CREATE INDEX idx_marketplace_rating ON marketplace_items(rating DESC);
-CREATE INDEX idx_marketplace_featured ON marketplace_items(featured);
-CREATE INDEX idx_marketplace_price ON marketplace_items(price);
-CREATE INDEX idx_marketplace_tags ON marketplace_items USING GIN(tags);
-CREATE INDEX idx_marketplace_user ON marketplace_items(user_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_status ON marketplace_items(status);
+CREATE INDEX IF NOT EXISTS idx_marketplace_category ON marketplace_items(category);
+CREATE INDEX IF NOT EXISTS idx_marketplace_downloads ON marketplace_items(downloads DESC);
+CREATE INDEX IF NOT EXISTS idx_marketplace_rating ON marketplace_items(rating DESC);
+CREATE INDEX IF NOT EXISTS idx_marketplace_featured ON marketplace_items(featured);
+CREATE INDEX IF NOT EXISTS idx_marketplace_price ON marketplace_items(price);
+CREATE INDEX IF NOT EXISTS idx_marketplace_tags ON marketplace_items USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_marketplace_user ON marketplace_items(user_id);
 
 -- User Purchases
 CREATE TABLE IF NOT EXISTS user_purchases (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   preset_id TEXT REFERENCES marketplace_items(id) ON DELETE SET NULL NOT NULL,
   
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS user_purchases (
   payment_id TEXT, -- Stripe payment ID
   
   -- License
-  license_id TEXT NOT NULL DEFAULT uuid_generate_v4()::TEXT,
+  license_id TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
   
   -- Usage
   download_count INTEGER DEFAULT 0,
@@ -80,13 +80,13 @@ CREATE TABLE IF NOT EXISTS user_purchases (
 );
 
 -- Indexes
-CREATE INDEX idx_purchases_user ON user_purchases(user_id);
-CREATE INDEX idx_purchases_preset ON user_purchases(preset_id);
-CREATE INDEX idx_purchases_status ON user_purchases(payment_status);
+CREATE INDEX IF NOT EXISTS idx_purchases_user ON user_purchases(user_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_preset ON user_purchases(preset_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_status ON user_purchases(payment_status);
 
 -- User Installed Presets
 CREATE TABLE IF NOT EXISTS user_installed_presets (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   preset_id TEXT REFERENCES marketplace_items(id) ON DELETE CASCADE NOT NULL,
   
@@ -96,11 +96,11 @@ CREATE TABLE IF NOT EXISTS user_installed_presets (
   UNIQUE(user_id, preset_id)
 );
 
-CREATE INDEX idx_installed_user ON user_installed_presets(user_id);
+CREATE INDEX IF NOT EXISTS idx_installed_user ON user_installed_presets(user_id);
 
 -- User Favorites
 CREATE TABLE IF NOT EXISTS user_favorites (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   preset_id TEXT REFERENCES marketplace_items(id) ON DELETE CASCADE NOT NULL,
   
@@ -109,11 +109,11 @@ CREATE TABLE IF NOT EXISTS user_favorites (
   UNIQUE(user_id, preset_id)
 );
 
-CREATE INDEX idx_favorites_user ON user_favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorites_user ON user_favorites(user_id);
 
 -- Preset Reviews
 CREATE TABLE IF NOT EXISTS preset_reviews (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL NOT NULL,
   preset_id TEXT REFERENCES marketplace_items(id) ON DELETE CASCADE NOT NULL,
   
@@ -130,12 +130,12 @@ CREATE TABLE IF NOT EXISTS preset_reviews (
   UNIQUE(user_id, preset_id)
 );
 
-CREATE INDEX idx_reviews_preset ON preset_reviews(preset_id);
-CREATE INDEX idx_reviews_rating ON preset_reviews(rating);
+CREATE INDEX IF NOT EXISTS idx_reviews_preset ON preset_reviews(preset_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_rating ON preset_reviews(rating);
 
 -- Creator Earnings (for paid presets)
 CREATE TABLE IF NOT EXISTS creator_earnings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL NOT NULL,
   preset_id TEXT REFERENCES marketplace_items(id) ON DELETE SET NULL,
   purchase_id UUID REFERENCES user_purchases(id) ON DELETE SET NULL,
@@ -153,8 +153,8 @@ CREATE TABLE IF NOT EXISTS creator_earnings (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_earnings_user ON creator_earnings(user_id);
-CREATE INDEX idx_earnings_status ON creator_earnings(payout_status);
+CREATE INDEX IF NOT EXISTS idx_earnings_user ON creator_earnings(user_id);
+CREATE INDEX IF NOT EXISTS idx_earnings_status ON creator_earnings(payout_status);
 
 -- ============================================================================
 -- ROW LEVEL SECURITY

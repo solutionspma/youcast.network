@@ -21,13 +21,15 @@ CREATE TABLE IF NOT EXISTS community_groups (
 
 ALTER TABLE community_groups ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Groups are viewable by everyone" ON community_groups;
 CREATE POLICY "Groups are viewable by everyone" ON community_groups FOR SELECT USING (is_public = true);
+DROP POLICY IF EXISTS "Admins can manage groups" ON community_groups;
 CREATE POLICY "Admins can manage groups" ON community_groups FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'master_admin'))
 );
 
-CREATE INDEX idx_community_groups_slug ON community_groups(slug);
-CREATE INDEX idx_community_groups_featured ON community_groups(is_featured);
+CREATE INDEX IF NOT EXISTS idx_community_groups_slug ON community_groups(slug);
+CREATE INDEX IF NOT EXISTS idx_community_groups_featured ON community_groups(is_featured);
 
 -- Group Memberships
 CREATE TABLE IF NOT EXISTS group_memberships (
@@ -41,12 +43,15 @@ CREATE TABLE IF NOT EXISTS group_memberships (
 
 ALTER TABLE group_memberships ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Memberships are viewable by everyone" ON group_memberships;
 CREATE POLICY "Memberships are viewable by everyone" ON group_memberships FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can join groups" ON group_memberships;
 CREATE POLICY "Users can join groups" ON group_memberships FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can leave groups" ON group_memberships;
 CREATE POLICY "Users can leave groups" ON group_memberships FOR DELETE USING (auth.uid() = user_id);
 
-CREATE INDEX idx_group_memberships_group ON group_memberships(group_id);
-CREATE INDEX idx_group_memberships_user ON group_memberships(user_id);
+CREATE INDEX IF NOT EXISTS idx_group_memberships_group ON group_memberships(group_id);
+CREATE INDEX IF NOT EXISTS idx_group_memberships_user ON group_memberships(user_id);
 
 -- Update member count trigger
 CREATE OR REPLACE FUNCTION update_group_member_count()
@@ -62,6 +67,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_group_membership_change ON group_memberships;
 CREATE TRIGGER on_group_membership_change
   AFTER INSERT OR DELETE ON group_memberships
   FOR EACH ROW
@@ -88,13 +94,15 @@ CREATE TABLE IF NOT EXISTS community_events (
 
 ALTER TABLE community_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Events are viewable by everyone" ON community_events;
 CREATE POLICY "Events are viewable by everyone" ON community_events FOR SELECT USING (is_public = true);
+DROP POLICY IF EXISTS "Admins can manage events" ON community_events;
 CREATE POLICY "Admins can manage events" ON community_events FOR ALL USING (
   EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'master_admin'))
 );
 
-CREATE INDEX idx_community_events_date ON community_events(start_date);
-CREATE INDEX idx_community_events_featured ON community_events(is_featured);
+CREATE INDEX IF NOT EXISTS idx_community_events_date ON community_events(start_date);
+CREATE INDEX IF NOT EXISTS idx_community_events_featured ON community_events(is_featured);
 
 -- Event Registrations
 CREATE TABLE IF NOT EXISTS event_registrations (
@@ -108,9 +116,13 @@ CREATE TABLE IF NOT EXISTS event_registrations (
 
 ALTER TABLE event_registrations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Registrations viewable by user" ON event_registrations;
 CREATE POLICY "Registrations viewable by user" ON event_registrations FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can register for events" ON event_registrations;
 CREATE POLICY "Users can register for events" ON event_registrations FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can cancel registration" ON event_registrations;
 CREATE POLICY "Users can cancel registration" ON event_registrations FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete registration" ON event_registrations;
 CREATE POLICY "Users can delete registration" ON event_registrations FOR DELETE USING (auth.uid() = user_id);
 
 -- Update attendee count trigger
@@ -127,6 +139,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_event_registration_change ON event_registrations;
 CREATE TRIGGER on_event_registration_change
   AFTER INSERT OR DELETE ON event_registrations
   FOR EACH ROW
@@ -148,15 +161,19 @@ CREATE TABLE IF NOT EXISTS discussion_posts (
 
 ALTER TABLE discussion_posts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Posts are viewable by everyone" ON discussion_posts;
 CREATE POLICY "Posts are viewable by everyone" ON discussion_posts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Members can post" ON discussion_posts;
 CREATE POLICY "Members can post" ON discussion_posts FOR INSERT WITH CHECK (
   EXISTS (SELECT 1 FROM group_memberships WHERE group_id = discussion_posts.group_id AND user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "Authors can edit posts" ON discussion_posts;
 CREATE POLICY "Authors can edit posts" ON discussion_posts FOR UPDATE USING (auth.uid() = author_id);
+DROP POLICY IF EXISTS "Authors can delete posts" ON discussion_posts;
 CREATE POLICY "Authors can delete posts" ON discussion_posts FOR DELETE USING (auth.uid() = author_id);
 
-CREATE INDEX idx_discussion_posts_group ON discussion_posts(group_id);
-CREATE INDEX idx_discussion_posts_author ON discussion_posts(author_id);
+CREATE INDEX IF NOT EXISTS idx_discussion_posts_group ON discussion_posts(group_id);
+CREATE INDEX IF NOT EXISTS idx_discussion_posts_author ON discussion_posts(author_id);
 
 -- ============================================================================
 -- SEED DEFAULT COMMUNITY GROUPS

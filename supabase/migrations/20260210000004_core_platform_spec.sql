@@ -204,7 +204,39 @@ CREATE POLICY "Activity log insert" ON activity_log FOR INSERT
 -- 6. STREAM DESTINATIONS - SPEC ALIGNED
 -- ============================================================================
 
--- Add encrypted key column and update policies
+-- Create streaming_destinations table if it doesn't exist
+CREATE TABLE IF NOT EXISTS streaming_destinations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id),
+  
+  -- Platform info
+  platform TEXT NOT NULL CHECK (platform IN ('youtube', 'facebook', 'twitch', 'custom', 'x')),
+  platform_name TEXT NOT NULL,
+  
+  -- Keys (stream_key will be deprecated in favor of encrypted)
+  stream_key TEXT,
+  stream_key_encrypted BYTEA,
+  rtmp_url TEXT,
+  
+  -- Status
+  is_active BOOLEAN DEFAULT true,
+  last_error TEXT,
+  
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add indexes
+CREATE INDEX IF NOT EXISTS idx_streaming_destinations_channel ON streaming_destinations(channel_id);
+CREATE INDEX IF NOT EXISTS idx_streaming_destinations_user ON streaming_destinations(user_id);
+CREATE INDEX IF NOT EXISTS idx_streaming_destinations_platform ON streaming_destinations(platform);
+
+-- Enable RLS
+ALTER TABLE streaming_destinations ENABLE ROW LEVEL SECURITY;
+
+-- Add encrypted key column and update policies (for existing tables)
 ALTER TABLE streaming_destinations
   ADD COLUMN IF NOT EXISTS stream_key_encrypted BYTEA,
   ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES profiles(id);

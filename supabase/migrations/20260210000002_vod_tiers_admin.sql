@@ -4,7 +4,7 @@
 
 -- VOD Storage Table
 CREATE TABLE IF NOT EXISTS vods (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   stream_id UUID REFERENCES streams(id) ON DELETE SET NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
@@ -42,17 +42,17 @@ CREATE TABLE IF NOT EXISTS vods (
 );
 
 -- VOD indexes
-CREATE INDEX idx_vods_user ON vods(user_id);
-CREATE INDEX idx_vods_channel ON vods(channel_id);
-CREATE INDEX idx_vods_status ON vods(status);
-CREATE INDEX idx_vods_visibility ON vods(visibility);
-CREATE INDEX idx_vods_view_count ON vods(view_count DESC);
-CREATE INDEX idx_vods_created_at ON vods(created_at DESC);
-CREATE INDEX idx_vods_expires_at ON vods(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_vods_user ON vods(user_id);
+CREATE INDEX IF NOT EXISTS idx_vods_channel ON vods(channel_id);
+CREATE INDEX IF NOT EXISTS idx_vods_status ON vods(status);
+CREATE INDEX IF NOT EXISTS idx_vods_visibility ON vods(visibility);
+CREATE INDEX IF NOT EXISTS idx_vods_view_count ON vods(view_count DESC);
+CREATE INDEX IF NOT EXISTS idx_vods_created_at ON vods(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_vods_expires_at ON vods(expires_at) WHERE expires_at IS NOT NULL;
 
 -- User Tiers Table
 CREATE TABLE IF NOT EXISTS user_tiers (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
   tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('guest', 'free', 'creator', 'pro', 'enterprise')),
   
@@ -74,12 +74,12 @@ CREATE TABLE IF NOT EXISTS user_tiers (
 );
 
 -- User tiers indexes
-CREATE INDEX idx_user_tiers_tier ON user_tiers(tier);
-CREATE INDEX idx_user_tiers_subscription ON user_tiers(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_user_tiers_tier ON user_tiers(tier);
+CREATE INDEX IF NOT EXISTS idx_user_tiers_subscription ON user_tiers(stripe_subscription_id);
 
 -- Stream Sessions Table (for tier enforcement)
 CREATE TABLE IF NOT EXISTS stream_sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   stream_id UUID REFERENCES streams(id) ON DELETE SET NULL,
   
@@ -98,12 +98,12 @@ CREATE TABLE IF NOT EXISTS stream_sessions (
 );
 
 -- Stream sessions indexes
-CREATE INDEX idx_stream_sessions_user ON stream_sessions(user_id);
-CREATE INDEX idx_stream_sessions_started ON stream_sessions(started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stream_sessions_user ON stream_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_stream_sessions_started ON stream_sessions(started_at DESC);
 
 -- Admin Users Table
 CREATE TABLE IF NOT EXISTS admin_users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE NOT NULL,
   email TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('master', 'admin', 'moderator')),
@@ -120,40 +120,78 @@ CREATE TABLE IF NOT EXISTS admin_users (
 );
 
 -- Admin users indexes
-CREATE INDEX idx_admin_users_email ON admin_users(email);
-CREATE INDEX idx_admin_users_role ON admin_users(role);
-CREATE INDEX idx_admin_users_active ON admin_users(active);
+CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
+CREATE INDEX IF NOT EXISTS idx_admin_users_role ON admin_users(role);
+CREATE INDEX IF NOT EXISTS idx_admin_users_active ON admin_users(active);
 
 -- Admin Actions Log (audit trail)
-CREATE TABLE IF NOT EXISTS admin_actions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  admin_user_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
-  admin_email TEXT NOT NULL,
+-- Note: admin_actions may already exist from initial_schema with different columns
+-- We add missing columns if they don't exist
+DO $$ 
+BEGIN
+  -- Add admin_user_id column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'admin_user_id') THEN
+    ALTER TABLE admin_actions ADD COLUMN admin_user_id UUID;
+  END IF;
   
-  -- Action details
-  action TEXT NOT NULL,
-  target_type TEXT NOT NULL CHECK (target_type IN ('user', 'stream', 'vod', 'destination', 'account')),
-  target_id TEXT NOT NULL,
-  reason TEXT,
-  metadata JSONB,
+  -- Add admin_email column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'admin_email') THEN
+    ALTER TABLE admin_actions ADD COLUMN admin_email TEXT;
+  END IF;
   
-  -- Reversibility
-  reversible BOOLEAN DEFAULT FALSE,
-  reversed BOOLEAN DEFAULT FALSE,
-  reversed_at TIMESTAMPTZ,
-  reversed_by UUID REFERENCES admin_users(id),
+  -- Add action column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'action') THEN
+    ALTER TABLE admin_actions ADD COLUMN action TEXT;
+  END IF;
   
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+  -- Add reason column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'reason') THEN
+    ALTER TABLE admin_actions ADD COLUMN reason TEXT;
+  END IF;
+  
+  -- Add metadata column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'metadata') THEN
+    ALTER TABLE admin_actions ADD COLUMN metadata JSONB;
+  END IF;
+  
+  -- Add reversible column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'reversible') THEN
+    ALTER TABLE admin_actions ADD COLUMN reversible BOOLEAN DEFAULT FALSE;
+  END IF;
+  
+  -- Add reversed column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'reversed') THEN
+    ALTER TABLE admin_actions ADD COLUMN reversed BOOLEAN DEFAULT FALSE;
+  END IF;
+  
+  -- Add reversed_at column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'reversed_at') THEN
+    ALTER TABLE admin_actions ADD COLUMN reversed_at TIMESTAMPTZ;
+  END IF;
+  
+  -- Add reversed_by column if it doesn't exist
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'admin_actions' AND column_name = 'reversed_by') THEN
+    ALTER TABLE admin_actions ADD COLUMN reversed_by UUID;
+  END IF;
+END $$;
 
--- Admin actions indexes
-CREATE INDEX idx_admin_actions_admin ON admin_actions(admin_user_id);
-CREATE INDEX idx_admin_actions_target ON admin_actions(target_type, target_id);
-CREATE INDEX idx_admin_actions_created ON admin_actions(created_at DESC);
+-- Admin actions indexes (use admin_id which exists in original schema)
+CREATE INDEX IF NOT EXISTS idx_admin_actions_admin ON admin_actions(admin_id);
+CREATE INDEX IF NOT EXISTS idx_admin_actions_target ON admin_actions(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_admin_actions_created ON admin_actions(created_at DESC);
 
 -- Account Suspensions Table
 CREATE TABLE IF NOT EXISTS account_suspensions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   admin_user_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
   admin_email TEXT NOT NULL,
@@ -173,12 +211,12 @@ CREATE TABLE IF NOT EXISTS account_suspensions (
 );
 
 -- Suspensions indexes
-CREATE INDEX idx_suspensions_user ON account_suspensions(user_id);
-CREATE INDEX idx_suspensions_active ON account_suspensions(active);
+CREATE INDEX IF NOT EXISTS idx_suspensions_user ON account_suspensions(user_id);
+CREATE INDEX IF NOT EXISTS idx_suspensions_active ON account_suspensions(active);
 
 -- Stream Limit Violations Table
 CREATE TABLE IF NOT EXISTS stream_limit_violations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   stream_session_id UUID REFERENCES stream_sessions(id) ON DELETE CASCADE,
   
@@ -192,8 +230,8 @@ CREATE TABLE IF NOT EXISTS stream_limit_violations (
 );
 
 -- Violations indexes
-CREATE INDEX idx_violations_user ON stream_limit_violations(user_id);
-CREATE INDEX idx_violations_type ON stream_limit_violations(violation_type);
+CREATE INDEX IF NOT EXISTS idx_violations_user ON stream_limit_violations(user_id);
+CREATE INDEX IF NOT EXISTS idx_violations_type ON stream_limit_violations(violation_type);
 
 -- ============================================================================
 -- ROW LEVEL SECURITY POLICIES
@@ -209,41 +247,49 @@ ALTER TABLE account_suspensions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stream_limit_violations ENABLE ROW LEVEL SECURITY;
 
 -- VODs policies
+DROP POLICY IF EXISTS "Public VODs are viewable by everyone" ON vods;
 CREATE POLICY "Public VODs are viewable by everyone"
   ON vods FOR SELECT
   USING (visibility = 'public' AND status = 'ready');
 
+DROP POLICY IF EXISTS "Users can view their own VODs" ON vods;
 CREATE POLICY "Users can view their own VODs"
   ON vods FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can manage their own VODs" ON vods;
 CREATE POLICY "Users can manage their own VODs"
   ON vods FOR ALL
   USING (auth.uid() = user_id);
 
 -- User tiers policies
+DROP POLICY IF EXISTS "Users can view their own tier" ON user_tiers;
 CREATE POLICY "Users can view their own tier"
   ON user_tiers FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Stream sessions policies
+DROP POLICY IF EXISTS "Users can view their own sessions" ON stream_sessions;
 CREATE POLICY "Users can view their own sessions"
   ON stream_sessions FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Admin policies (admin users can bypass RLS via service role)
+DROP POLICY IF EXISTS "Admins can view admin_users" ON admin_users;
 CREATE POLICY "Admins can view admin_users"
   ON admin_users FOR SELECT
   USING (
     auth.uid() IN (SELECT user_id FROM admin_users WHERE active = true)
   );
 
+DROP POLICY IF EXISTS "Admins can view admin_actions" ON admin_actions;
 CREATE POLICY "Admins can view admin_actions"
   ON admin_actions FOR SELECT
   USING (
     auth.uid() IN (SELECT user_id FROM admin_users WHERE active = true)
   );
 
+DROP POLICY IF EXISTS "Admins can create admin_actions" ON admin_actions;
 CREATE POLICY "Admins can create admin_actions"
   ON admin_actions FOR INSERT
   WITH CHECK (
@@ -440,16 +486,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_vods_updated_at ON vods;
 CREATE TRIGGER update_vods_updated_at
   BEFORE UPDATE ON vods
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_user_tiers_updated_at ON user_tiers;
 CREATE TRIGGER update_user_tiers_updated_at
   BEFORE UPDATE ON user_tiers
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_admin_users_updated_at ON admin_users;
 CREATE TRIGGER update_admin_users_updated_at
   BEFORE UPDATE ON admin_users
   FOR EACH ROW
