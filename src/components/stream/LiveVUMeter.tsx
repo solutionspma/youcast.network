@@ -1,11 +1,12 @@
 /**
  * Live VU Meter Component
  * Real-time audio level metering for device selection panel
+ * Uses DOM refs instead of React state to avoid 60fps re-renders
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { subscribeMeterUpdates, MeterData } from '@/lib/audio/audioInitialization';
 
 interface LiveVUMeterProps {
@@ -18,7 +19,7 @@ interface LiveVUMeterProps {
 
 /**
  * Real-time VU meter with peak and RMS display
- * Updates via requestAnimationFrame from audio analyzer
+ * Updates DOM refs directly via requestAnimationFrame (no React state updates)
  */
 export function LiveVUMeter({
   sourceId,
@@ -27,42 +28,68 @@ export function LiveVUMeter({
   compact = false,
   className = '',
 }: LiveVUMeterProps) {
-  const [peak, setPeak] = useState(0);
-  const [rms, setRms] = useState(0);
-  const [isActive, setIsActive] = useState(false);
+  // Use refs to store values without triggering re-renders
+  const peakRef = useRef(0);
+  const rmsRef = useRef(0);
+  const isActiveRef = useRef(false);
+  const meterContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Subscribe to meter updates for this source
+    // This updates refs directly - NO React state updates, NO re-renders
     const unsubscribe = subscribeMeterUpdates((data: MeterData) => {
       if (data.sourceId === sourceId) {
-        setPeak(data.peak);
-        setRms(data.rms);
-        setIsActive(data.isActive);
+        peakRef.current = data.peak;
+        rmsRef.current = data.rms;
+        isActiveRef.current = data.isActive;
+        
+        // Update DOM directly from requestAnimationFrame
+        updateMeterDisplay();
       }
     });
 
     return unsubscribe;
   }, [sourceId]);
 
+  // Update meter display directly on DOM elements
+  const updateMeterDisplay = () => {
+    if (!meterContainerRef.current) return;
+
+    const segments = meterContainerRef.current.querySelectorAll('[data-meter-segment]');
+    segments.forEach((segment, i) => {
+      const threshold = (i + 1) * (100 / segments.length);
+      const displayValue = isMuted ? 0 : rmsRef.current;
+      const shouldLight = displayValue >= threshold && isActiveRef.current;
+      
+      let colorClass = 'bg-surface-700';
+      if (shouldLight) {
+        if (threshold > 85) colorClass = 'bg-red-500';
+        else if (threshold > 70) colorClass = 'bg-yellow-500';
+        else colorClass = 'bg-green-500';
+      }
+
+      segment.className = `flex-1 rounded-sm transition-colors duration-75 ${colorClass}`;
+    });
+  };
+
   const getSegmentColor = (threshold: number, value: number): string => {
-    if (!isActive || isMuted || value < threshold) return 'bg-surface-700';
+    if (!isActiveRef.current || isMuted || value < threshold) return 'bg-surface-700';
     if (threshold > 85) return 'bg-red-500';
     if (threshold > 70) return 'bg-yellow-500';
     return 'bg-green-500';
   };
 
-  const displayValue = isMuted ? 0 : rms;
-  const displayPeak = isMuted ? 0 : peak;
-  const noSignal = displayPeak < 1 && displayValue < 1 && isActive;
+  const displayValue = isMuted ? 0 : rmsRef.current;
+  const displayPeak = isMuted ? 0 : peakRef.current;
 
   if (compact) {
     // Compact horizontal meter with minimal height
     return (
-      <div className={`space-y-1 ${className}`}>
+      <div ref={meterContainerRef} className={`space-y-1 ${className}`}>
         {showLabel && (
           <div className="flex items-center justify-between text-[10px]">
             <span className="text-surface-400">Signal</span>
-            {!isActive && (
+            {!isActiveRef.current && (
               <span className="text-surface-600 text-[8px]">OFFLINE</span>
             )}
           </div>
@@ -74,6 +101,7 @@ export function LiveVUMeter({
             return (
               <div
                 key={`segment-${i}`}
+                data-meter-segment
                 className={`flex-1 rounded-sm transition-colors duration-75 ${getSegmentColor(threshold, displayValue)}`}
               />
             );
@@ -91,13 +119,13 @@ export function LiveVUMeter({
 
   // Full meter with RMS + Peak
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div ref={meterContainerRef} className={`space-y-2 ${className}`}>
       {showLabel && (
         <div className="flex items-center justify-between text-xs">
-          <span className={isActive ? 'text-white' : 'text-surface-500'}>
+          <span className={isActiveRef.current ? 'text-white' : 'text-surface-500'}>
             Level: {isMuted ? 'MUTED' : displayValue.toFixed(0)}%
           </span>
-          {!isActive && (
+          {!isActiveRef.current && (
             <span className="text-surface-600 text-[9px] uppercase tracking-tight">
               No Signal
             </span>
@@ -112,6 +140,7 @@ export function LiveVUMeter({
           return (
             <div
               key={`rms-${i}`}
+              data-meter-segment
               className={`h-2 flex-1 rounded-sm transition-colors duration-75 ${getSegmentColor(threshold, displayValue)} opacity-70`}
             />
           );
@@ -125,6 +154,7 @@ export function LiveVUMeter({
           return (
             <div
               key={`peak-${i}`}
+              data-meter-segment
               className={`h-1 flex-1 rounded-sm transition-colors duration-75 ${getSegmentColor(threshold, displayPeak)}`}
             />
           );
@@ -135,11 +165,11 @@ export function LiveVUMeter({
       <div className="flex items-center gap-2 text-[9px]">
         <div
           className={`w-1.5 h-1.5 rounded-full ${
-            isActive ? (displayValue > 0 ? 'bg-green-500' : 'bg-green-500/40') : 'bg-red-500/40'
+            isActiveRef.current ? (displayValue > 0 ? 'bg-green-500' : 'bg-green-500/40') : 'bg-red-500/40'
           }`}
         />
-        <span className={isActive ? 'text-surface-400' : 'text-red-500/60'}>
-          {isActive ? 'Live' : 'Offline'}
+        <span className={isActiveRef.current ? 'text-surface-400' : 'text-red-500/60'}>
+          {isActiveRef.current ? 'Live' : 'Offline'}
         </span>
       </div>
     </div>
@@ -156,27 +186,43 @@ export function CompactVUMeter({
   sourceId: string;
   isMuted?: boolean;
 }) {
-  const [rms, setRms] = useState(0);
+  const rmsRef = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeMeterUpdates((data: MeterData) => {
       if (data.sourceId === sourceId) {
-        setRms(data.rms);
+        rmsRef.current = data.rms;
+        updateDisplay();
       }
     });
 
     return unsubscribe;
   }, [sourceId]);
 
-  const value = isMuted ? 0 : rms;
+  const updateDisplay = () => {
+    if (!barRef.current) return;
+    const value = isMuted ? 0 : rmsRef.current * 100;
+    barRef.current.style.width = `${value}%`;
+    
+    // Update color classes
+    barRef.current.classList.remove('bg-red-500', 'bg-yellow-500', 'bg-green-500');
+    if (value > 85) {
+      barRef.current.classList.add('bg-red-500');
+    } else if (value > 70) {
+      barRef.current.classList.add('bg-yellow-500');
+    } else {
+      barRef.current.classList.add('bg-green-500');
+    }
+  };
 
   return (
-    <div className="w-full h-1.5 bg-surface-800 rounded-full overflow-hidden">
+    <div ref={containerRef} className="w-full h-1.5 bg-surface-800 rounded-full overflow-hidden">
       <div
-        className={`h-full transition-all duration-75 ${
-          value > 85 ? 'bg-red-500' : value > 70 ? 'bg-yellow-500' : 'bg-green-500'
-        }`}
-        style={{ width: `${value}%` }}
+        ref={barRef}
+        className="h-full transition-all duration-75 bg-green-500"
+        style={{ width: '0%' }}
       />
     </div>
   );

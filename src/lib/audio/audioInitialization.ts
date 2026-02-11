@@ -52,43 +52,65 @@ let audioState: StreamAudioState = {
   },
 };
 
+// Singleton initialization guard - prevents multiple AudioContext instances
+let audioEngineInitialized = false;
+let audioEngineInitPromise: Promise<AudioContext> | null = null;
+
 /**
  * Initialize AudioContext and master output chain
+ * SINGLETON: Ensures only ONE AudioContext is created per session
  */
 async function initializeAudioContext(): Promise<AudioContext> {
-  if (audioState.context) return audioState.context;
-
-  // Request permissions to get microphone
-  try {
-    await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: false,
-    });
-  } catch (e) {
-    console.warn('Mic permission denied (may already be granted):', e);
+  // If already initialized, return immediately
+  if (audioEngineInitialized && audioState.context) {
+    return audioState.context;
   }
 
-  // Create audio context (resumes automatically in browsers)
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  if (ctx.state === 'suspended') {
-    ctx.resume().catch(() => {});
+  // If initialization is in progress, wait for it to complete
+  if (audioEngineInitPromise) {
+    return audioEngineInitPromise;
   }
 
-  audioState.context = ctx;
+  // Mark as initializing and create promise
+  audioEngineInitPromise = (async () => {
+    // Request permissions to get microphone
+    try {
+      await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
+    } catch (e) {
+      console.warn('Mic permission denied (may already be granted):', e);
+    }
 
-  // Create master gain
-  audioState.masterGainNode = ctx.createGain();
-  audioState.masterGainNode.gain.value = 0.8;
+    // Create audio context (resumes automatically in browsers)
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
 
-  // Create destination (MediaStreamAudioDestination for streaming/recording)
-  audioState.masterDestination = ctx.createMediaStreamDestination();
+    audioState.context = ctx;
 
-  // Connect chain: masterGain → destination + system output
-  audioState.masterGainNode.connect(audioState.masterDestination);
-  audioState.masterGainNode.connect(ctx.destination); // Monitor output
+    // Create master gain
+    audioState.masterGainNode = ctx.createGain();
+    audioState.masterGainNode.gain.value = 0.8;
 
-  console.log('✅ AudioContext initialized');
-  return ctx;
+    // Create destination (MediaStreamAudioDestination for streaming/recording)
+    audioState.masterDestination = ctx.createMediaStreamDestination();
+
+    // Connect chain: masterGain → destination + system output
+    audioState.masterGainNode.connect(audioState.masterDestination);
+    audioState.masterGainNode.connect(ctx.destination); // Monitor output
+
+    // Mark as initialized
+    audioEngineInitialized = true;
+    audioEngineInitPromise = null;
+
+    console.log('✅ AudioContext initialized (SINGLETON)');
+    return ctx;
+  })();
+
+  return audioEngineInitPromise;
 }
 
 /**
@@ -344,4 +366,20 @@ export function setMasterVolume(gain: number): void {
  */
 export function getAudioContext(): AudioContext | null {
   return audioState.context;
+}
+
+/**
+ * Public API: Initialize the audio engine (SINGLETON)
+ * Safe to call multiple times - will only initialize once per session
+ * @returns Promise resolving to the single AudioContext instance
+ */
+export async function initAudioEngine(): Promise<AudioContext> {
+  return initializeAudioContext();
+}
+
+/**
+ * Check if audio engine has been initialized
+ */
+export function isAudioEngineInitialized(): boolean {
+  return audioEngineInitialized;
 }

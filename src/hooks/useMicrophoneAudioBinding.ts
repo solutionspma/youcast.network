@@ -1,15 +1,17 @@
 /**
  * Hook to bridge microphone stream from useStream to audio initialization
  * Automatically binds captured microphone to the audio graph for metering and mixing
+ * SINGLETON: The audio engine initializes only once per session
  */
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   addAudioSource,
   removeAudioSource,
   getAudioSource,
+  initAudioEngine,
 } from '@/lib/audio/audioInitialization';
 
 interface useMicrophoneAudioBindingProps {
@@ -21,13 +23,22 @@ interface useMicrophoneAudioBindingProps {
 /**
  * Hook that automatically binds microphone stream to Web Audio graph
  * Handles adding/removing audio sources as stream changes
+ * IMPORTANT: Audio engine initializes ONCE. This hook re-runs on stream changes only.
  */
 export function useMicrophoneAudioBinding({
   audioStream,
   deviceLabel = 'Microphone',
   sourceId = 'microphone-primary',
 }: useMicrophoneAudioBindingProps) {
+  const initPromiseRef = useRef<Promise<void> | null>(null);
+
   useEffect(() => {
+    // Initialize audio engine once (idempotent - safe to call multiple times)
+    if (!initPromiseRef.current) {
+      initPromiseRef.current = initAudioEngine()
+        .catch((err) => console.error('Failed to init audio engine:', err));
+    }
+
     if (!audioStream) {
       // Remove audio source if stream goes away
       const existingSource = getAudioSource(sourceId);
@@ -51,6 +62,10 @@ export function useMicrophoneAudioBinding({
     // Bind microphone stream to audio graph
     const bindMicrophone = async () => {
       try {
+        // Ensure engine is initialized first
+        await initPromiseRef.current;
+
+        // Then add source
         await addAudioSource({
           id: sourceId,
           type: 'microphone',
