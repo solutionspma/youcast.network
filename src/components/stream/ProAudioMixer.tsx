@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ChannelState, EQBand, CompressorSettings, NoiseGateSettings, getAudioEngine } from '@/lib/audio/WebAudioEngine';
+import { getAllAudioSources, getAudioSource, AudioSource } from '@/lib/audio/audioInitialization';
 
 interface ProAudioMixerProps {
   className?: string;
@@ -439,6 +440,8 @@ function ChannelStrip({ channel }: { channel: ChannelState }) {
 export default function ProAudioMixer({ className = '' }: ProAudioMixerProps) {
   const [channels, setChannels] = useState<Map<string, ChannelState>>(new Map());
   const [masterVolume, setMasterVolumeState] = useState(80);
+  const [availableSources, setAvailableSources] = useState<AudioSource[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const engine = getAudioEngine();
 
   useEffect(() => {
@@ -447,6 +450,25 @@ export default function ProAudioMixer({ className = '' }: ProAudioMixerProps) {
     });
     return unsubscribe;
   }, [engine]);
+
+  // Track available audio sources
+  useEffect(() => {
+    const updateSources = () => {
+      const sources = getAllAudioSources();
+      setAvailableSources(sources);
+      
+      // Auto-select first source if none selected
+      if (sources.length > 0 && !selectedSourceId) {
+        setSelectedSourceId(sources[0].id);
+      }
+    };
+
+    updateSources();
+    
+    // Poll for source changes (triggered by device selector)
+    const interval = setInterval(updateSources, 500);
+    return () => clearInterval(interval);
+  }, [selectedSourceId]);
 
   const handleMasterVolumeChange = useCallback((volume: number) => {
     setMasterVolumeState(volume);
@@ -461,6 +483,32 @@ export default function ProAudioMixer({ className = '' }: ProAudioMixerProps) {
         <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Pro Audio Mixer</h3>
         <span className="text-[10px] text-surface-500">{channelArray.length} channels</span>
       </div>
+
+      {/* Audio Source Selector */}
+      {availableSources.length > 0 && (
+        <div className="p-2.5 bg-surface-800/50 rounded-lg border border-surface-700/50">
+          <label className="block text-[10px] font-semibold text-white uppercase tracking-wider mb-1.5">
+            Input Source
+          </label>
+          <select
+            value={selectedSourceId}
+            onChange={(e) => setSelectedSourceId(e.target.value)}
+            className="w-full px-2 py-1.5 bg-surface-900 border border-surface-700 rounded text-xs text-white
+              hover:border-surface-600 focus:outline-none focus:border-brand-500 transition-colors"
+          >
+            <option value="">Select source...</option>
+            {availableSources.map((source) => (
+              <option key={source.id} value={source.id}>
+                {source.label}
+                {source.readyState !== 'live' && ' (offline)'}
+              </option>
+            ))}
+          </select>
+          <div className="mt-1.5 text-[9px] text-surface-500">
+            {availableSources.length} source{availableSources.length !== 1 ? 's' : ''} available
+          </div>
+        </div>
+      )}
 
       {channelArray.length === 0 ? (
         <div className="text-center py-6 text-surface-500 text-sm">

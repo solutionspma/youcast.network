@@ -3,8 +3,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useStream } from '@/hooks/useStream';
 import { useAudioEngine } from '@/hooks/useAudioEngine';
+import { useMicrophoneAudioBinding } from '@/hooks/useMicrophoneAudioBinding';
 import { createClient } from '@/lib/supabase/client';
 import StreamChat from '@/components/stream/StreamChat';
+import { LiveVUMeter } from '@/components/stream/LiveVUMeter';
+import { AudioDeviceSelector } from '@/components/stream/AudioDeviceSelector';
 import { IS_PRODUCTION_DATA } from '@/lib/env';
 
 // Pro Components
@@ -254,6 +257,13 @@ export default function ProStreamStudioPage() {
   
   // Collaborative session
   const collaborativeSession = useCollaborativeSession();
+  
+  // Auto-bind microphone to audio graph
+  useMicrophoneAudioBinding({
+    audioStream: stream.audioStream,
+    deviceLabel: 'Stream Microphone',
+    sourceId: 'microphone-primary',
+  });
   
   // Get channel ID
   useEffect(() => {
@@ -574,6 +584,18 @@ export default function ProStreamStudioPage() {
                       <option key={mic.deviceId} value={mic.deviceId}>{mic.label}</option>
                     ))}
                   </select>
+                  
+                  {/* Live VU Meter for microphone */}
+                  {stream.audioStream && (
+                    <div className="mt-2">
+                      <LiveVUMeter
+                        sourceId="microphone-primary"
+                        compact
+                        showLabel={false}
+                        className="text-zinc-400"
+                      />
+                    </div>
+                  )}
                 </div>
                 
                 <button
