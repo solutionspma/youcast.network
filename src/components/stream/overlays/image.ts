@@ -8,7 +8,7 @@ export type ImageOverlayData = {
 };
 
 export function drawImageOverlay(ctx: CanvasRenderingContext2D, data: ImageOverlayData) {
-  if (!data.img.complete) return;
+  if (!data?.img?.complete) return;
   
   ctx.globalAlpha = data.opacity;
   ctx.drawImage(

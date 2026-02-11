@@ -7,7 +7,7 @@ export type LogoData = {
 };
 
 export function drawLogo(ctx: CanvasRenderingContext2D, data: LogoData) {
-  if (!data.img.complete) return;
+  if (!data?.img?.complete) return;
   
   ctx.globalAlpha = data.opacity;
   ctx.drawImage(
