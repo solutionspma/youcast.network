@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   addAudioSource,
   removeAudioSource,
@@ -30,13 +30,16 @@ export function useMicrophoneAudioBinding({
   deviceLabel = 'Microphone',
   sourceId = 'microphone-primary',
 }: useMicrophoneAudioBindingProps) {
-  const initPromiseRef = useRef<Promise<void> | null>(null);
+  const initPromiseRef = useRef<Promise<AudioContext> | null>(null);
 
   useEffect(() => {
     // Initialize audio engine once (idempotent - safe to call multiple times)
     if (!initPromiseRef.current) {
       initPromiseRef.current = initAudioEngine()
-        .catch((err) => console.error('Failed to init audio engine:', err));
+        .catch((err) => {
+          console.error('Failed to init audio engine:', err);
+          throw err;
+        });
     }
 
     if (!audioStream) {
