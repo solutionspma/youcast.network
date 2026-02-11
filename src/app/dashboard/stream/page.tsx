@@ -65,6 +65,8 @@ export default function StreamStudioPage() {
   const [showFullMixer, setShowFullMixer] = useState(false);
   const [showFullSwitcher, setShowFullSwitcher] = useState(false);
   const [showThumbnailStudio, setShowThumbnailStudio] = useState(false);
+  const [activeComposition, setActiveComposition] = useState('starting');
+  const [previewComposition, setPreviewComposition] = useState('fullcam');
   
   const isInitialMount = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -756,27 +758,51 @@ export default function StreamStudioPage() {
 
                 {/* Preview / Program Mini */}
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 bg-green-900/20 border border-green-500/50 rounded-lg text-center">
+                  <div 
+                    onClick={() => setPreviewComposition(previewComposition === 'fullcam' ? 'screenshare' : 'fullcam')}
+                    className="p-2 bg-green-900/20 border border-green-500/50 rounded-lg text-center cursor-pointer hover:bg-green-900/40 transition-colors"
+                  >
                     <div className="text-[8px] text-green-400 font-bold mb-1">PREVIEW</div>
                     <span className="text-2xl">📹</span>
-                    <div className="text-[10px] text-white mt-1">Full Camera</div>
+                    <div className="text-[10px] text-white mt-1">{previewComposition === 'fullcam' ? 'Full Camera' : 'Screen + PIP'}</div>
                   </div>
                   <div className="p-2 bg-red-900/20 border border-red-500/50 rounded-lg text-center">
                     <div className="text-[8px] text-red-400 font-bold mb-1 flex items-center justify-center gap-1">
                       <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
                       PROGRAM
                     </div>
-                    <span className="text-2xl">⏰</span>
-                    <div className="text-[10px] text-white mt-1">Starting Soon</div>
+                    <span className="text-2xl">
+                      {activeComposition === 'starting' ? '⏰' :
+                       activeComposition === 'fullcam' ? '📹' :
+                       activeComposition === 'screenshare' ? '🖥️' :
+                       activeComposition === 'brb' ? '🔄' :
+                       activeComposition === 'ending' ? '👋' : '⏰'}
+                    </span>
+                    <div className="text-[10px] text-white mt-1">
+                      {activeComposition === 'starting' ? 'Starting Soon' :
+                       activeComposition === 'fullcam' ? 'Full Camera' :
+                       activeComposition === 'screenshare' ? 'Screen + PIP' :
+                       activeComposition === 'brb' ? 'Be Right Back' :
+                       activeComposition === 'ending' ? 'Ending Soon' : 'Unknown'}
+                    </div>
                   </div>
                 </div>
 
                 {/* Transition Controls */}
                 <div className="flex gap-1">
-                  <button className="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded">
+                  <button 
+                    onClick={() => setActiveComposition(previewComposition)}
+                    className="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded transition-colors"
+                  >
                     CUT
                   </button>
-                  <button className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded">
+                  <button 
+                    onClick={() => {
+                      // AUTO does a fade transition over 1 second
+                      setTimeout(() => setActiveComposition(previewComposition), 1000);
+                    }}
+                    className="flex-1 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded transition-colors"
+                  >
                     AUTO
                   </button>
                 </div>
@@ -784,23 +810,27 @@ export default function StreamStudioPage() {
                 {/* Quick Compositions */}
                 <div className="space-y-1">
                   {[
-                    { id: 'starting', name: 'Starting Soon', icon: '⏰', active: true },
-                    { id: 'fullcam', name: 'Full Camera', icon: '📹', active: false },
-                    { id: 'screenshare', name: 'Screen + PIP', icon: '🖥️', active: false },
-                    { id: 'brb', name: 'Be Right Back', icon: '🔄', active: false },
-                    { id: 'ending', name: 'Ending Soon', icon: '👋', active: false },
+                    { id: 'starting', name: 'Starting Soon', icon: '⏰' },
+                    { id: 'fullcam', name: 'Full Camera', icon: '📹' },
+                    { id: 'screenshare', name: 'Screen + PIP', icon: '🖥️' },
+                    { id: 'brb', name: 'Be Right Back', icon: '🔄' },
+                    { id: 'ending', name: 'Ending Soon', icon: '👋' },
                   ].map((comp) => (
                     <button
                       key={comp.id}
+                      onClick={() => setPreviewComposition(comp.id)}
                       className={`w-full flex items-center gap-2 p-2 rounded-lg text-left transition-all ${
-                        comp.active 
+                        activeComposition === comp.id
                           ? 'bg-red-600/20 border border-red-500 text-white' 
+                          : previewComposition === comp.id
+                          ? 'bg-green-600/20 border border-green-500 text-white'
                           : 'bg-zinc-800/50 border border-zinc-700 text-zinc-300 hover:bg-zinc-700/50'
                       }`}
                     >
                       <span className="text-lg">{comp.icon}</span>
                       <span className="text-xs flex-1">{comp.name}</span>
-                      {comp.active && <span className="text-[8px] text-red-400 font-bold">LIVE</span>}
+                      {activeComposition === comp.id && <span className="text-[8px] text-red-400 font-bold">LIVE</span>}
+                      {previewComposition === comp.id && activeComposition !== comp.id && <span className="text-[8px] text-green-400 font-bold">NEXT</span>}
                     </button>
                   ))}
                 </div>
@@ -809,7 +839,7 @@ export default function StreamStudioPage() {
                 <div className="pt-2 border-t border-zinc-800">
                   <button 
                     onClick={() => setShowFullSwitcher(true)}
-                    className="w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-medium rounded-lg"
+                    className="w-full py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-medium rounded-lg transition-all"
                   >
                     🎬 Open Full Switcher
                   </button>
