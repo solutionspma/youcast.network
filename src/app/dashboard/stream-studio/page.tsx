@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useStream } from '@/hooks/useStream';
+import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { createClient } from '@/lib/supabase/client';
 import StreamChat from '@/components/stream/StreamChat';
 import { IS_PRODUCTION_DATA } from '@/lib/env';
@@ -20,6 +21,12 @@ import {
 import { getCompositionEngine } from '@/lib/streamStudio/CompositionEngine';
 import { useCompositions, useCompositionHotkeys } from '@/hooks/useCompositions';
 
+// Lower Thirds
+import { LowerThirdOverlay } from '@/components/stream/lower-thirds/LowerThirdOverlay';
+import { LowerThirdGallery } from '@/components/stream/lower-thirds/LowerThirdGallery';
+import { getLowerThirdEngine } from '@/components/stream/lower-thirds/LowerThirdEngine';
+import { useLowerThirds } from '@/components/stream/useLowerThirds';
+
 // Import Pro CSS
 import '@/styles/pro-mixer.css';
 
@@ -27,7 +34,7 @@ import '@/styles/pro-mixer.css';
 // TYPES
 // ============================================================================
 
-type LeftPanel = 'sources' | 'compositions' | 'overlays';
+type LeftPanel = 'sources' | 'compositions' | 'overlays' | 'lower-thirds';
 type RightPanel = 'chat' | 'audio' | 'soundboard' | 'collab';
 
 type ChatMessage = {
@@ -40,7 +47,66 @@ type ChatMessage = {
 };
 
 // ============================================================================
-// PRO CHANNEL STRIP (inline for now)
+// REAL VU METER COMPONENT (Uses actual analyzer data)
+// ============================================================================
+
+function RealVUMeter({ peak, rms, muted }: { peak: number; rms: number; muted: boolean }) {
+  const getSegmentColor = (threshold: number, value: number) => {
+    if (muted || value < threshold) return 'bg-surface-700';
+    if (threshold > 85) return 'bg-red-500';
+    if (threshold > 70) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  // Show "NO SIGNAL" when both peak and rms are effectively zero
+  const noSignal = peak < 1 && rms < 1;
+
+  if (noSignal && !muted) {
+    return (
+      <div className="space-y-1">
+        <div className="h-4 flex items-center justify-center">
+          <span className="text-[8px] text-surface-500 uppercase tracking-wider">No Signal</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-0.5">
+      {/* RMS meter */}
+      <div className="flex gap-0.5">
+        {Array.from({ length: 20 }).map((_, i) => {
+          const threshold = (i + 1) * 5;
+          return (
+            <div
+              key={`rms-${i}`}
+              className={`h-1.5 flex-1 rounded-sm transition-colors duration-75 ${
+                rms >= threshold ? getSegmentColor(threshold, rms) : 'bg-surface-800'
+              } opacity-70`}
+            />
+          );
+        })}
+      </div>
+      {/* Peak meter */}
+      <div className="flex gap-0.5">
+        {Array.from({ length: 20 }).map((_, i) => {
+          const threshold = (i + 1) * 5;
+          return (
+            <div
+              key={`peak-${i}`}
+              className={`h-1 flex-1 rounded-sm transition-colors duration-75 ${
+                peak >= threshold ? getSegmentColor(threshold, peak) : 'bg-surface-800'
+              }`}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// PRO CHANNEL STRIP (Uses real audio engine)
 // ============================================================================
 
 interface ChannelStripProps {
@@ -49,17 +115,20 @@ interface ChannelStripProps {
   volume: number;
   isMuted: boolean;
   isSolo: boolean;
+  peakL: number;
+  peakR: number;
   onVolumeChange: (v: number) => void;
   onMuteToggle: () => void;
   onSoloToggle: () => void;
-  peakL?: number;
-  peakR?: number;
+  onMonitorToggle: () => void;
+  isMonitoring: boolean;
 }
 
 function ChannelStrip({ 
   name, type, volume, isMuted, isSolo, 
   onVolumeChange, onMuteToggle, onSoloToggle,
-  peakL = 0, peakR = 0
+  onMonitorToggle, isMonitoring,
+  peakL, peakR
 }: ChannelStripProps) {
   const dB = volume === 0 ? -Infinity : 20 * Math.log10(volume / 100);
   const dBDisplay = volume === 0 ? '-∞' : dB.toFixed(1);
@@ -71,13 +140,23 @@ function ChannelStrip({
         <span className="channel-strip__type">{type}</span>
       </div>
       
-      {/* VU Meters */}
+      {/* Real VU Meters */}
       <div className="vu-meters">
         <div className="vu-bar">
-          <div className="vu-bar__fill" style={{ height: `${peakL}%` }} />
+          <div 
+            className={`vu-bar__fill transition-all duration-75 ${
+              peakL > 85 ? 'bg-red-500' : peakL > 70 ? 'bg-yellow-500' : 'bg-green-500'
+            }`}
+            style={{ height: `${isMuted ? 0 : peakL}%` }} 
+          />
         </div>
         <div className="vu-bar">
-          <div className="vu-bar__fill" style={{ height: `${peakR}%` }} />
+          <div 
+            className={`vu-bar__fill transition-all duration-75 ${
+              peakR > 85 ? 'bg-red-500' : peakR > 70 ? 'bg-yellow-500' : 'bg-green-500'
+            }`}
+            style={{ height: `${isMuted ? 0 : peakR}%` }} 
+          />
         </div>
       </div>
       
@@ -100,12 +179,14 @@ function ChannelStrip({
         <button 
           className={`channel-btn solo ${isSolo ? 'active' : ''}`}
           onClick={onSoloToggle}
+          title="Solo"
         >
           S
         </button>
         <button 
           className={`channel-btn mute ${isMuted ? 'active' : ''}`}
           onClick={onMuteToggle}
+          title="Mute"
         >
           M
         </button>
@@ -114,7 +195,13 @@ function ChannelStrip({
       {/* Output Routing */}
       <div className="output-routing">
         <button className="output-btn active">🔴 Stream</button>
-        <button className="output-btn">🎧 Mon</button>
+        <button 
+          className={`output-btn ${isMonitoring ? 'active' : ''}`}
+          onClick={onMonitorToggle}
+          title="Monitor to headphones"
+        >
+          🎧 Mon
+        </button>
         <button className="output-btn">⏺ Rec</button>
       </div>
     </div>
@@ -131,14 +218,6 @@ export default function ProStreamStudioPage() {
   const [rightPanel, setRightPanel] = useState<RightPanel>('audio');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [showMixer, setShowMixer] = useState(true);
-  
-  // Audio state
-  const [audioChannels, setAudioChannels] = useState([
-    { id: 'mic', name: 'Mic', type: 'mic' as const, volume: 80, muted: false, solo: false },
-    { id: 'camera', name: 'Camera', type: 'camera' as const, volume: 0, muted: true, solo: false },
-    { id: 'screen', name: 'Screen', type: 'screen' as const, volume: 50, muted: false, solo: false },
-    { id: 'music', name: 'Music', type: 'music' as const, volume: 30, muted: false, solo: false },
-  ]);
   const [masterVolume, setMasterVolume] = useState(85);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -149,9 +228,29 @@ export default function ProStreamStudioPage() {
   const stream = useStream(channelId);
   const supabase = createClient();
   
+  // Audio Engine (REAL audio processing)
+  const {
+    isInitialized: audioInitialized,
+    channels: audioChannels,
+    meters: audioMeters,
+    initAudio,
+    addChannel: addAudioChannel,
+    setVolume,
+    setMuted,
+    setSolo,
+    setMasterVolume: setMasterVol,
+    enableMonitor,
+    disableMonitor,
+    isMonitoring,
+    muteAll,
+  } = useAudioEngine();
+  
   // Composition system
   const { compositions, activeComposition, previewComposition, switchToComposition, setPreview } = useCompositions();
   useCompositionHotkeys();
+  
+  // Lower thirds
+  const lowerThirds = useLowerThirds();
   
   // Collaborative session
   const collaborativeSession = useCollaborativeSession();
@@ -190,6 +289,41 @@ export default function ProStreamStudioPage() {
     fetchOrCreateChannel();
   }, [supabase]);
   
+  // Initialize audio engine and bind streams
+  useEffect(() => {
+    const bindAudio = async () => {
+      if (!audioInitialized) {
+        await initAudio();
+      }
+      
+      // Bind microphone stream
+      if (stream.audioStream) {
+        await addAudioChannel(
+          { id: 'mic', name: 'Microphone', type: 'microphone' },
+          stream.audioStream
+        );
+      }
+      
+      // Bind camera audio (if exists)
+      if (stream.cameraStream?.getAudioTracks().length) {
+        await addAudioChannel(
+          { id: 'camera', name: 'Camera Audio', type: 'microphone' },
+          stream.cameraStream
+        );
+      }
+      
+      // Bind screen audio (if exists)
+      if (stream.screenStream?.getAudioTracks().length) {
+        await addAudioChannel(
+          { id: 'screen', name: 'Screen Audio', type: 'desktop' },
+          stream.screenStream
+        );
+      }
+    };
+    
+    bindAudio();
+  }, [stream.audioStream, stream.cameraStream, stream.screenStream, audioInitialized, initAudio, addAudioChannel]);
+  
   // Initialize canvas
   useEffect(() => {
     if (canvasRef.current) {
@@ -213,10 +347,37 @@ export default function ProStreamStudioPage() {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
   
-  // Audio handlers
-  const updateChannel = (id: string, updates: Partial<typeof audioChannels[0]>) => {
-    setAudioChannels(prev => prev.map(ch => ch.id === id ? { ...ch, ...updates } : ch));
-  };
+  // Audio control wrappers (shared between mini and full mixer)
+  const handleVolumeChange = useCallback((id: string, volume: number) => {
+    setVolume(id, volume);
+  }, [setVolume]);
+  
+  const handleMuteToggle = useCallback((id: string) => {
+    const channel = audioChannels.get(id);
+    if (channel) {
+      setMuted(id, !channel.muted);
+    }
+  }, [audioChannels, setMuted]);
+  
+  const handleSoloToggle = useCallback((id: string) => {
+    const channel = audioChannels.get(id);
+    if (channel) {
+      setSolo(id, !channel.solo);
+    }
+  }, [audioChannels, setSolo]);
+  
+  const handleMonitorToggle = useCallback((id: string) => {
+    if (isMonitoring === id) {
+      disableMonitor();
+    } else {
+      enableMonitor(id);
+    }
+  }, [isMonitoring, enableMonitor, disableMonitor]);
+  
+  const handleMasterVolumeChange = useCallback((volume: number) => {
+    setMasterVolume(volume);
+    setMasterVol(volume);
+  }, [setMasterVol]);
   
   // Handle send message
   const handleSendMessage = async (message: string) => {
@@ -232,6 +393,9 @@ export default function ProStreamStudioPage() {
         message: message.trim()
       });
   };
+  
+  // Helper to get audio channel array from Map
+  const audioChannelArray = Array.from(audioChannels.values());
 
   return (
     <div className="pro-studio">
@@ -335,7 +499,7 @@ export default function ProStreamStudioPage() {
         <div className="sources-panel__content">
           {/* Panel Tabs */}
           <div className="flex gap-1 mb-3">
-            {(['sources', 'compositions', 'overlays'] as LeftPanel[]).map(tab => (
+            {(['sources', 'compositions', 'overlays', 'lower-thirds'] as LeftPanel[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setLeftPanel(tab)}
@@ -345,7 +509,7 @@ export default function ProStreamStudioPage() {
                     : 'text-zinc-500 hover:text-zinc-300'
                 }`}
               >
-                {tab}
+                {tab === 'lower-thirds' ? 'L3' : tab.substring(0, 4)}
               </button>
             ))}
           </div>
@@ -455,6 +619,11 @@ export default function ProStreamStudioPage() {
               </button>
             </div>
           )}
+          
+          {/* Lower Thirds Panel */}
+          {leftPanel === 'lower-thirds' && (
+            <LowerThirdGallery engine={getLowerThirdEngine()} />
+          )}
         </div>
       </aside>
       
@@ -485,6 +654,9 @@ export default function ProStreamStudioPage() {
               width={1920}
               height={1080}
             />
+            
+            {/* Lower Third Overlay */}
+            <LowerThirdOverlay />
             
             {stream.status === 'offline' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/80">
@@ -557,30 +729,60 @@ export default function ProStreamStudioPage() {
           
           {rightPanel === 'audio' && (
             <div className="space-y-4">
-              <h3 className="text-xs font-semibold text-zinc-400 uppercase">Quick Audio</h3>
-              {audioChannels.map(ch => (
-                <div key={ch.id} className="flex items-center gap-3">
-                  <button 
-                    onClick={() => updateChannel(ch.id, { muted: !ch.muted })}
-                    className={`w-8 h-8 rounded flex items-center justify-center text-sm ${
-                      ch.muted ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-300'
-                    }`}
-                  >
-                    {ch.muted ? '🔇' : '🔊'}
-                  </button>
-                  <div className="flex-1">
-                    <div className="text-xs text-white mb-1">{ch.name}</div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={ch.volume}
-                      onChange={(e) => updateChannel(ch.id, { volume: Number(e.target.value) })}
-                      className="w-full"
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-zinc-400 uppercase">Quick Audio</h3>
+                <button 
+                  onClick={muteAll}
+                  className="text-[10px] px-2 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded"
+                >
+                  Mute All
+                </button>
+              </div>
+              {audioChannelArray.map(ch => {
+                const meter = audioMeters.get(ch.id);
+                return (
+                  <div key={ch.id} className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => handleMuteToggle(ch.id)}
+                        className={`w-8 h-8 rounded flex items-center justify-center text-sm ${
+                          ch.muted ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-300'
+                        }`}
+                      >
+                        {ch.muted ? '🔇' : '🔊'}
+                      </button>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-white">{ch.name}</span>
+                          <span className="text-[10px] text-surface-500">
+                            {ch.volume === 0 ? '-∞' : (20 * Math.log10(ch.volume / 100)).toFixed(0)} dB
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={ch.volume}
+                          onChange={(e) => handleVolumeChange(ch.id, Number(e.target.value))}
+                          className="w-full h-1"
+                        />
+                      </div>
+                    </div>
+                    {/* Mini VU Meter */}
+                    <RealVUMeter 
+                      peak={meter?.peak || 0} 
+                      rms={meter?.rms || 0}
+                      muted={ch.muted}
                     />
                   </div>
+                );
+              })}
+              {audioChannelArray.length === 0 && (
+                <div className="text-center py-8 text-zinc-500 text-sm">
+                  <p>No audio sources connected</p>
+                  <p className="text-xs mt-1">Select a microphone in Sources panel</p>
                 </div>
-              ))}
+              )}
             </div>
           )}
           
@@ -611,21 +813,35 @@ export default function ProStreamStudioPage() {
         
         {showMixer && (
           <div className="channel-strips">
-            {audioChannels.map(ch => (
-              <ChannelStrip
-                key={ch.id}
-                name={ch.name}
-                type={ch.type}
-                volume={ch.volume}
-                isMuted={ch.muted}
-                isSolo={ch.solo}
-                onVolumeChange={(v) => updateChannel(ch.id, { volume: v })}
-                onMuteToggle={() => updateChannel(ch.id, { muted: !ch.muted })}
-                onSoloToggle={() => updateChannel(ch.id, { solo: !ch.solo })}
-                peakL={Math.random() * ch.volume}
-                peakR={Math.random() * ch.volume}
-              />
-            ))}
+            {audioChannelArray.map(ch => {
+              const meter = audioMeters.get(ch.id);
+              return (
+                <ChannelStrip
+                  key={ch.id}
+                  name={ch.name}
+                  type={ch.type === 'microphone' ? 'mic' : ch.type === 'desktop' ? 'screen' : ch.type as any}
+                  volume={ch.volume}
+                  isMuted={ch.muted}
+                  isSolo={ch.solo}
+                  peakL={meter?.peak || 0}
+                  peakR={meter?.rms || 0}
+                  onVolumeChange={(v) => handleVolumeChange(ch.id, v)}
+                  onMuteToggle={() => handleMuteToggle(ch.id)}
+                  onSoloToggle={() => handleSoloToggle(ch.id)}
+                  onMonitorToggle={() => handleMonitorToggle(ch.id)}
+                  isMonitoring={isMonitoring === ch.id}
+                />
+              );
+            })}
+            
+            {audioChannelArray.length === 0 && (
+              <div className="flex items-center justify-center w-full py-8 text-zinc-500 text-sm">
+                <div className="text-center">
+                  <p>No audio channels</p>
+                  <p className="text-xs mt-1">Connect a microphone to get started</p>
+                </div>
+              </div>
+            )}
             
             {/* Master Bus */}
             <div className="channel-strip master-bus">
@@ -635,10 +851,16 @@ export default function ProStreamStudioPage() {
               
               <div className="vu-meters">
                 <div className="vu-bar">
-                  <div className="vu-bar__fill" style={{ height: `${masterVolume * 0.8}%` }} />
+                  <div 
+                    className="vu-bar__fill bg-green-500 transition-all duration-75" 
+                    style={{ height: `${masterVolume * 0.8}%` }} 
+                  />
                 </div>
                 <div className="vu-bar">
-                  <div className="vu-bar__fill" style={{ height: `${masterVolume * 0.8}%` }} />
+                  <div 
+                    className="vu-bar__fill bg-green-500 transition-all duration-75" 
+                    style={{ height: `${masterVolume * 0.8}%` }} 
+                  />
                 </div>
               </div>
               
@@ -648,7 +870,7 @@ export default function ProStreamStudioPage() {
                   min="0"
                   max="100"
                   value={masterVolume}
-                  onChange={(e) => setMasterVolume(Number(e.target.value))}
+                  onChange={(e) => handleMasterVolumeChange(Number(e.target.value))}
                   className="fader"
                   style={{ width: '120px' }}
                 />

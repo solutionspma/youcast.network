@@ -32,6 +32,15 @@ const TRANSITION_OPTIONS: { id: TransitionType; label: string; icon: JSX.Element
   },
 ];
 
+const AUTO_ADVANCE_PRESETS = [
+  { label: 'Off', value: 0 },
+  { label: '5s', value: 5000 },
+  { label: '10s', value: 10000 },
+  { label: '30s', value: 30000 },
+  { label: '1m', value: 60000 },
+  { label: '5m', value: 300000 },
+];
+
 export default function CompositionSwitcher({ className = '', compact = false }: CompositionSwitcherProps) {
   const [state, setState] = useState<BroadcastState | null>(null);
   const [selectedTransition, setSelectedTransition] = useState<TransitionType>('fade');

@@ -11,6 +11,7 @@ import { getCompositionEngine } from '@/lib/streamStudio/CompositionEngine';
 export function useCompositions() {
   const [state, setState] = useState<BroadcastState | null>(null);
   const [transitionProgress, setTransitionProgress] = useState(0);
+  const [autoAdvance, setAutoAdvance] = useState<{ remaining: number; total: number; compositionId: string } | null>(null);
   const engine = getCompositionEngine();
 
   useEffect(() => {
@@ -18,10 +19,18 @@ export function useCompositions() {
     const unsubTransition = engine.subscribeToTransitions((progress) => {
       setTransitionProgress(progress);
     });
+    const unsubAutoAdvance = engine.subscribeToAutoAdvance((remaining, total, compositionId) => {
+      if (total > 0) {
+        setAutoAdvance({ remaining, total, compositionId });
+      } else {
+        setAutoAdvance(null);
+      }
+    });
 
     return () => {
       unsubState();
       unsubTransition();
+      unsubAutoAdvance();
     };
   }, []);
 
@@ -109,6 +118,10 @@ export function useCompositions() {
     engine.importAll(json);
   }, []);
 
+  const cancelAutoAdvance = useCallback(() => {
+    engine.cancelAutoAdvance();
+  }, []);
+
   // ─── Derived State ───────────────────────────────────────────────────
 
   const activeComposition = state?.compositions.find(c => c.id === state.activeCompositionId) || null;
@@ -130,6 +143,7 @@ export function useCompositions() {
     visibleOverlays,
     isTransitioning: state?.isTransitioning || false,
     transitionProgress,
+    autoAdvance,
 
     // Composition actions
     switchToComposition,
@@ -140,6 +154,7 @@ export function useCompositions() {
     updateComposition,
     deleteComposition,
     duplicateComposition,
+    cancelAutoAdvance,
 
     // Overlay actions
     toggleOverlay,

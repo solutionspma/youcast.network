@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAudioEngine, UseAudioEngineReturn } from '@/hooks/useAudioEngine';
+import { ChannelState } from '@/lib/audio/WebAudioEngine';
 
 // ============================================================================
 // TYPES
@@ -29,6 +31,7 @@ interface AudioSource {
   meterPeak: number;
   hasSignal: boolean;  // TRUE ONLY when real audio detected
   stream?: MediaStream; // Actual audio stream connection
+  channelState?: ChannelState; // Reference to real audio engine state
 }
 
 interface MasterState {
@@ -42,6 +45,8 @@ interface MasterState {
   monitorEnabled: boolean;
   hasSignal: boolean; // TRUE only when real audio detected
 }
+
+const NOISE_FLOOR_DB = -50;
 
 // ============================================================================
 // KNOB COMPONENT
@@ -433,115 +438,14 @@ function MasterSection({ master, onUpdate }: { master: MasterState; onUpdate: (u
 }
 
 // ============================================================================
-// MAIN COMPONENT
+// MAIN COMPONENT - WIRED TO REAL WEBAUDIOENGINE
 // ============================================================================
 
 export default function ProAudioMixerFull({ className = '' }: { className?: string }) {
-  // Audio context and analysers for REAL metering
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analysersRef = useRef<Map<string, AnalyserNode>>(new Map());
-  const masterAnalyserRef = useRef<AnalyserNode | null>(null);
-  const NOISE_FLOOR_DB = -60; // Signals below this are silence
+  // Use the REAL WebAudioEngine, not local mock state
+  const audioEngine = useAudioEngine();
   
-  const [sources, setSources] = useState<AudioSource[]>([
-    {
-      id: 'cam1',
-      name: 'Camera 1',
-      icon: '📹',
-      type: 'camera',
-      gain: 0,
-      eqLow: 0,
-      eqMid: 0,
-      eqHigh: 0,
-      compThreshold: -20,
-      compRatio: 4,
-      gateThreshold: -40,
-      fader: 75,
-      muted: false,
-      solo: false,
-      linked: false,
-      routeStream: true,
-      routeMonitor: true,
-      routeRecord: true,
-      meterLevel: 0,
-      meterPeak: 0,
-      hasSignal: false,
-      stream: undefined,
-    },
-    {
-      id: 'mic1',
-      name: 'Microphone',
-      icon: '🎙️',
-      type: 'mic',
-      gain: 6,
-      eqLow: -2,
-      eqMid: 1,
-      eqHigh: 3,
-      compThreshold: -18,
-      compRatio: 6,
-      gateThreshold: -35,
-      fader: 80,
-      muted: false,
-      solo: false,
-      linked: false,
-      routeStream: true,
-      routeMonitor: true,
-      routeRecord: true,
-      meterLevel: 0,
-      meterPeak: 0,
-      hasSignal: false,
-      stream: undefined,
-    },
-    {
-      id: 'screen',
-      name: 'Screen Audio',
-      icon: '🖥️',
-      type: 'screen',
-      gain: 0,
-      eqLow: 0,
-      eqMid: 0,
-      eqHigh: 0,
-      compThreshold: -15,
-      compRatio: 3,
-      gateThreshold: -50,
-      fader: 60,
-      muted: true,
-      solo: false,
-      linked: false,
-      routeStream: true,
-      routeMonitor: false,
-      routeRecord: true,
-      meterLevel: 0,
-      meterPeak: 0,
-      hasSignal: false,
-      stream: undefined,
-    },
-    {
-      id: 'media',
-      name: 'Media Player',
-      icon: '🎵',
-      type: 'media',
-      gain: -3,
-      eqLow: 2,
-      eqMid: 0,
-      eqHigh: -1,
-      compThreshold: -12,
-      compRatio: 2,
-      gateThreshold: -60,
-      fader: 50,
-      muted: false,
-      solo: false,
-      linked: false,
-      routeStream: true,
-      routeMonitor: true,
-      routeRecord: true,
-      meterLevel: 0,
-      meterPeak: 0,
-      hasSignal: false,
-      stream: undefined,
-    },
-  ]);
-
+  const [sources, setSources] = useState<AudioSource[]>([]);
   const [master, setMaster] = useState<MasterState>({
     level: 75,
     meterL: 0,
@@ -550,137 +454,171 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
     peakR: 0,
     limiterActive: false,
     muted: false,
-    monitorEnabled: true,
+    monitorEnabled: false,
     hasSignal: false,
   });
+  
+  const meterPeaksRef = useRef<Map<string, number>>(new Map());
+  const masterMeterPeaksRef = useRef<{ L: number; R: number }>({ L: 0, R: 0 });
 
-  // Helper: Calculate RMS level from analyser data
-  const calculateLevel = useCallback((analyser: AnalyserNode | null): { level: number; hasSignal: boolean } => {
-    if (!analyser) return { level: 0, hasSignal: false };
-    
-    const dataArray = new Float32Array(analyser.frequencyBinCount);
-    analyser.getFloatTimeDomainData(dataArray);
-    
-    // Calculate RMS
-    let sum = 0;
-    let peak = 0;
-    for (const sample of dataArray) {
-      const abs = Math.abs(sample);
-      if (abs > peak) peak = abs;
-      sum += sample * sample;
-    }
-    const rms = Math.sqrt(sum / dataArray.length);
-    
-    // Convert to dB
-    const rmsDb = rms > 0 ? 20 * Math.log10(rms) : -100;
-    
-    // Only show signal if above noise floor
-    if (rmsDb < NOISE_FLOOR_DB) {
-      return { level: 0, hasSignal: false };
-    }
-    
-    // Map -60dB to 0dB -> 0 to 100
-    const level = Math.max(0, Math.min(100, (rmsDb + 60) * (100 / 60)));
-    return { level, hasSignal: true };
-  }, [NOISE_FLOOR_DB]);
-
-  // Real meter updates - only moves when there's actual signal
+  // INITIALIZATION: Wire audio engine to UI
   useEffect(() => {
-    const interval = setInterval(() => {
-      setSources(prev => prev.map(s => {
-        // If muted or no stream, meters show nothing
-        if (s.muted || !s.stream) {
-          return { 
-            ...s, 
-            meterLevel: 0, 
-            meterPeak: Math.max(0, s.meterPeak - 3), // Peak decay
-            hasSignal: false 
-          };
-        }
+    // Initialize audio engine with microphone stream
+    const initAudio = async () => {
+      try {
+        const stream = await audioEngine.initAudio();
+        console.log('✅ Audio engine initialized with stream:', stream);
         
-        // Check if MediaStreamTrack is live
-        const tracks = s.stream.getAudioTracks();
-        if (tracks.length === 0 || tracks[0].readyState !== 'live') {
-          return { 
-            ...s, 
-            meterLevel: 0, 
-            meterPeak: Math.max(0, s.meterPeak - 3),
-            hasSignal: false 
-          };
-        }
+        // Add microphone as first channel
+        await audioEngine.addChannel(
+          { id: 'mic1', name: 'Microphone', type: 'microphone' },
+          stream
+        );
+      } catch (error) {
+        console.error('❌ Failed to initialize audio:', error);
+      }
+    };
+    
+    if (!audioEngine.isInitialized) {
+      initAudio();
+    }
+  }, [audioEngine]);
 
-        // Get real level from analyser
-        const analyser = analysersRef.current.get(s.id);
-        const { level, hasSignal } = calculateLevel(analyser || null);
-        
-        return {
-          ...s,
-          meterLevel: level,
-          meterPeak: Math.max(level, s.meterPeak - 1), // Peak hold with decay
-          hasSignal,
-        };
-      }));
+  // SYNC: Keep UI sources synchronized with engine channels
+  useEffect(() => {
+    const newSources: AudioSource[] = Array.from(audioEngine.channels.entries()).map(([id, state]) => {
+      return {
+        id,
+        name: state.name,
+        icon: state.type === 'microphone' ? '🎙️' : state.type === 'desktop' ? '🖥️' : '🎵',
+        type: state.type === 'microphone' ? 'mic' : state.type === 'desktop' ? 'screen' : 'media',
+        gain: state.volume, // Map engine volume to UI
+        eqLow: state.eq[0]?.gain || 0,
+        eqMid: state.eq[1]?.gain || 0,
+        eqHigh: state.eq[2]?.gain || 0,
+        compThreshold: state.compressor.threshold,
+        compRatio: state.compressor.ratio,
+        gateThreshold: state.noiseGate.threshold,
+        fader: state.volume, // UI fader reflects engine volume
+        muted: state.muted,
+        solo: state.solo,
+        linked: false,
+        routeStream: true,
+        routeMonitor: false,
+        routeRecord: true,
+        meterLevel: state.rmsLevel || 0,
+        meterPeak: meterPeaksRef.current.get(id) || 0,
+        hasSignal: state.rmsLevel > 5, // Signal detected if RMS > -55dB
+        channelState: state,
+      };
+    });
+    
+    setSources(newSources);
+  }, [audioEngine.channels, audioEngine.meters]);
 
-      // Update master meters
+  // METERING: Update meters from real audio engine in real-time
+  useEffect(() => {
+    const meterInterval = setInterval(() => {
+      // Update individual channel meters
+      audioEngine.channels.forEach((state, id) => {
+        const currentPeak = meterPeaksRef.current.get(id) || 0;
+        const newPeak = Math.max(state.rmsLevel || 0, currentPeak - 3); // Decay at 3% per frame
+        meterPeaksRef.current.set(id, newPeak);
+      });
+      
+      // Update master meters (from engine master output)
       setMaster(prev => {
-        if (prev.muted) {
-          return { 
-            ...prev, 
-            meterL: 0, 
-            meterR: 0, 
-            peakL: Math.max(0, prev.peakL - 3),
-            peakR: Math.max(0, prev.peakR - 3),
-            hasSignal: false,
-            limiterActive: false
-          };
-        }
+        const masterMeters = Array.from(audioEngine.meters.values())[0];
+        if (!masterMeters) return prev;
         
-        const { level, hasSignal } = calculateLevel(masterAnalyserRef.current);
+        const currentPeakL = masterMeterPeaksRef.current.L;
+        const currentPeakR = masterMeterPeaksRef.current.R;
+        const newPeakL = Math.max(masterMeters.rms || 0, currentPeakL - 3);
+        const newPeakR = Math.max(masterMeters.rms || 0, currentPeakR - 3);
+        
+        masterMeterPeaksRef.current = { L: newPeakL, R: newPeakR };
         
         return {
           ...prev,
-          meterL: level,
-          meterR: level * (0.95 + Math.random() * 0.1), // Slight stereo variation
-          peakL: Math.max(level, prev.peakL - 1),
-          peakR: Math.max(level, prev.peakR - 1),
-          limiterActive: level > 95,
-          hasSignal,
+          meterL: masterMeters.rms || 0,
+          meterR: masterMeters.rms || 0,
+          peakL: newPeakL,
+          peakR: newPeakR,
+          hasSignal: (masterMeters.rms || 0) > 5,
+          limiterActive: (masterMeters.rms || 0) > 95,
         };
       });
-    }, 33); // ~30fps metering
+    }, 33); // ~30fps
+    
+    return () => clearInterval(meterInterval);
+  }, [audioEngine.meters, audioEngine.channels]);
 
-    return () => clearInterval(interval);
-  }, [calculateLevel]);
-
-  // Connect audio stream to analyser when source has stream
-  const connectStreamToAnalyser = useCallback((sourceId: string, stream: MediaStream) => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext({ sampleRate: 48000 });
-    }
-    
-    const ctx = audioContextRef.current;
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.5;
-    
-    const source = ctx.createMediaStreamSource(stream);
-    source.connect(analyser);
-    
-    analysersRef.current.set(sourceId, analyser);
-    
-    // Update source with stream reference
-    setSources(prev => prev.map(s => 
-      s.id === sourceId ? { ...s, stream, hasSignal: false } : s
-    ));
-  }, []);
-
+  // BUTTON WIRING: Handle all control changes
   const handleSourceUpdate = useCallback((id: string, updates: Partial<AudioSource>) => {
-    setSources(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-  }, []);
+    // Update engine state based on UI changes
+    if (updates.muted !== undefined) {
+      audioEngine.setMuted(id, updates.muted);
+    }
+    if (updates.fader !== undefined) {
+      audioEngine.setVolume(id, updates.fader);
+    }
+    if (updates.solo !== undefined) {
+      audioEngine.setSolo(id, updates.solo);
+    }
+    if (updates.eqLow !== undefined || updates.eqMid !== undefined || updates.eqHigh !== undefined) {
+      const state = audioEngine.channels.get(id);
+      if (state) {
+        if (updates.eqLow !== undefined) {
+          audioEngine.setEQBand(id, 0, { gain: updates.eqLow });
+        }
+        if (updates.eqMid !== undefined) {
+          audioEngine.setEQBand(id, 1, { gain: updates.eqMid });
+        }
+        if (updates.eqHigh !== undefined) {
+          audioEngine.setEQBand(id, 2, { gain: updates.eqHigh });
+        }
+      }
+    }
+    if (updates.compThreshold !== undefined || updates.compRatio !== undefined) {
+      const state = audioEngine.channels.get(id);
+      if (state) {
+        const newSettings: any = {};
+        if (updates.compThreshold !== undefined) newSettings.threshold = updates.compThreshold;
+        if (updates.compRatio !== undefined) newSettings.ratio = updates.compRatio;
+        audioEngine.setCompressor(id, newSettings);
+      }
+    }
+    if (updates.gateThreshold !== undefined) {
+      audioEngine.setNoiseGate(id, { threshold: updates.gateThreshold });
+    }
+  }, [audioEngine]);
 
   const handleMasterUpdate = useCallback((updates: Partial<MasterState>) => {
-    setMaster(prev => ({ ...prev, ...updates }));
-  }, []);
+    if (updates.muted !== undefined) {
+      if (updates.muted) {
+        audioEngine.muteAll();
+      } else {
+        audioEngine.unmuteAll();
+      }
+      setMaster(prev => ({ ...prev, muted: updates.muted || false }));
+    }
+    if (updates.level !== undefined) {
+      audioEngine.setMasterVolume(updates.level);
+      setMaster(prev => ({ ...prev, level: updates.level || 75 }));
+    }
+    if (updates.monitorEnabled !== undefined) {
+      if (updates.monitorEnabled) {
+        // Enable monitor on first channel
+        const firstChannelId = audioEngine.channels.keys().next().value;
+        if (firstChannelId) {
+          audioEngine.enableMonitor(firstChannelId);
+        }
+      } else {
+        audioEngine.disableMonitor();
+      }
+      setMaster(prev => ({ ...prev, monitorEnabled: updates.monitorEnabled || false }));
+    }
+  }, [audioEngine]);
 
   return (
     <div className={`audio-mixer bg-zinc-950 rounded-xl border border-zinc-800 overflow-hidden ${className}`}>
@@ -688,7 +626,7 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
       <div className="flex items-center justify-between px-4 py-2 bg-zinc-900 border-b border-zinc-800">
         <div className="flex items-center gap-3">
           <span className="text-sm font-bold text-white">🎛️ Audio Mixer</span>
-          <span className="text-[10px] text-zinc-500">{sources.length} Sources</span>
+          <span className="text-[10px] text-zinc-500">{sources.length} {sources.length === 1 ? 'Source' : 'Sources'}</span>
           {/* Global Signal Status */}
           <span className={`text-[10px] px-2 py-0.5 rounded-full ${
             sources.some(s => s.hasSignal) 
@@ -699,9 +637,6 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-2 py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded">
-            + Add Source
-          </button>
           <button className="px-2 py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded">
             ⚙️ Settings
           </button>
@@ -721,6 +656,11 @@ export default function ProAudioMixerFull({ className = '' }: { className?: stri
             {sources.map(source => (
               <ChannelStrip key={source.id} source={source} onUpdate={handleSourceUpdate} />
             ))}
+            {sources.length === 0 && (
+              <div className="flex items-center justify-center w-full text-zinc-600">
+                <span className="text-[12px]">Initializing audio...</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

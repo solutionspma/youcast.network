@@ -3,6 +3,7 @@ export { useMedia } from './useMedia';
 export { useStream } from './useStream';
 export { useFeatureFlag, useFeatureFlags } from './useFeatureFlag';
 export { useCompositions, useCompositionHotkeys, useOverlayVisibility } from './useCompositions';
+export { useAudioEngine, useAudioChannelBind } from './useAudioEngine';
 export {
   useTitleSuggestions,
   useThumbnailSuggestions,

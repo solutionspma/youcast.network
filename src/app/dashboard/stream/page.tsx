@@ -10,6 +10,7 @@ import { STREAM_STUDIO_MODE, assertNoExternalReset } from '@/lib/streamStudio/co
 import { useLowerThirds } from '@/components/stream/useLowerThirds';
 import { useLowerThirdHotkeys } from '@/components/stream/lower-thirds/useLowerThirdHotkeys';
 import { LowerThirdEditor } from '@/components/stream/lower-thirds/LowerThirdEditor';
+import { LowerThirdGallery } from '@/components/stream/lower-thirds/LowerThirdGallery';
 import { useOverlays } from '@/components/stream/useOverlays';
 import { useCompositor } from '@/components/stream/useCompositor';
 import { useGlobalShortcuts } from '@/components/stream/useGlobalShortcuts';
@@ -133,6 +134,9 @@ export default function StreamStudioPage() {
     };
     
     fetchOrCreateChannel();
+    
+    // Enumerate devices on mount
+    stream.enumerateDevices();
   }, []);
   
   // ============================================================================
@@ -608,7 +612,7 @@ export default function StreamStudioPage() {
             {/* GRAPHICS PANEL - Lower Thirds */}
             {leftPanel === 'graphics' && (
               <div className="space-y-4">
-                <LowerThirdEditor engine={lowerThirds.engine} />
+                <LowerThirdGallery engine={lowerThirds.engine} onClose={() => setLeftPanel('devices')} />
               </div>
             )}
             
@@ -707,16 +711,20 @@ export default function StreamStudioPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { name: 'YouTube', size: '1280×720', icon: '📺' },
-                    { name: 'Shorts', size: '1080×1920', icon: '📱' },
-                    { name: 'Instagram', size: '1080×1080', icon: '📷' },
-                    { name: 'TikTok', size: '1080×1920', icon: '🎵' },
+                    { name: 'YouTube', size: '1280×720', icon: '📺', platform: 'youtube' as const },
+                    { name: 'Shorts', size: '1080×1920', icon: '📱', platform: 'shorts' as const },
+                    { name: 'Instagram', size: '1080×1080', icon: '📷', platform: 'instagram' as const },
+                    { name: 'TikTok', size: '1080×1920', icon: '🎵', platform: 'tiktok' as const },
                   ].map(p => (
-                    <div key={p.name} className="p-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-center">
+                    <button
+                      key={p.name}
+                      onClick={() => setShowThumbnailStudio(true)}
+                      className="p-2 bg-zinc-800/50 border border-zinc-700 rounded-lg text-center hover:border-zinc-600 hover:bg-zinc-800 transition-colors cursor-pointer"
+                    >
                       <span className="text-lg">{p.icon}</span>
                       <div className="text-[10px] text-white">{p.name}</div>
                       <div className="text-[8px] text-zinc-500">{p.size}</div>
-                    </div>
+                    </button>
                   ))}
                 </div>
                 <button
@@ -993,7 +1001,11 @@ export default function StreamStudioPage() {
             >
               ✕
             </button>
-            <ThumbnailStudio className="h-full" />
+            <ThumbnailStudio 
+              className="h-full"
+              streamId={stream.streamId}
+              channelId={channelId}
+            />
           </div>
         </div>
       )}

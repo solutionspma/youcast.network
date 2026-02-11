@@ -561,7 +561,15 @@ function CanvasRenderer({
 // MAIN THUMBNAIL STUDIO COMPONENT
 // ============================================================================
 
-export default function ThumbnailStudio({ className = '' }: { className?: string }) {
+export default function ThumbnailStudio({ 
+  className = '',
+  streamId,
+  channelId,
+}: { 
+  className?: string;
+  streamId?: string;
+  channelId?: string;
+}) {
   const [canvas, setCanvas] = useState<ThumbnailCanvas>(() => createDefaultCanvas('youtube'));
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ past: ThumbnailCanvas[]; future: ThumbnailCanvas[] }>({ past: [], future: [] });

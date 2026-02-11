@@ -16,6 +16,7 @@ import {
 
 type CompositionListener = (state: BroadcastState) => void;
 type TransitionListener = (progress: number, from: string | null, to: string | null) => void;
+type AutoAdvanceListener = (remaining: number, total: number, compositionId: string) => void;
 
 const generateId = () => `comp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -23,11 +24,18 @@ export class CompositionEngine {
   private state: BroadcastState;
   private listeners = new Set<CompositionListener>();
   private transitionListeners = new Set<TransitionListener>();
+  private autoAdvanceListeners = new Set<AutoAdvanceListener>();
   private transitionFrame: number | null = null;
   private transitionStartTime: number = 0;
   private transitionDuration: number = 0;
   private transitionFrom: string | null = null;
   private transitionTo: string | null = null;
+  
+  // Auto-advance timer
+  private autoAdvanceTimer: NodeJS.Timeout | null = null;
+  private autoAdvanceStartTime: number = 0;
+  private autoAdvanceDuration: number = 0;
+  private autoAdvanceInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     // Initialize with default state
@@ -201,6 +209,7 @@ export class CompositionEngine {
       this.state.isTransitioning = false;
       this.state.transitionProgress = 0;
       this.emit();
+      this.startAutoAdvanceIfNeeded(composition);
     } else {
       // Animated transition
       this.startTransition(this.state.activeCompositionId, compositionId, durationMs);
@@ -255,6 +264,7 @@ export class CompositionEngine {
         const toComposition = this.state.compositions.find(c => c.id === this.transitionTo);
         if (toComposition) {
           this.applyComposition(toComposition);
+          this.startAutoAdvanceIfNeeded(toComposition);
         }
         this.state.activeCompositionId = this.transitionTo;
         this.state.isTransitioning = false;
@@ -276,6 +286,87 @@ export class CompositionEngine {
 
     // Audio and video states are emitted to listeners
     // who should apply them to their respective engines
+  }
+
+  // =========================================================================
+  // AUTO-ADVANCE TIMER
+  // =========================================================================
+
+  private startAutoAdvanceIfNeeded(composition: Composition): void {
+    // Clear existing timer
+    this.clearAutoAdvanceTimer();
+
+    // Check if auto-advance is enabled
+    if (!composition.autoAdvanceMs || composition.autoAdvanceMs <= 0) {
+      return;
+    }
+
+    // Determine next composition
+    let nextId = composition.nextCompositionId;
+    if (!nextId) {
+      // Auto-advance to next composition in list
+      const currentIndex = this.state.compositions.findIndex(c => c.id === composition.id);
+      if (currentIndex !== -1 && currentIndex < this.state.compositions.length - 1) {
+        nextId = this.state.compositions[currentIndex + 1].id;
+      }
+    }
+
+    if (!nextId) {
+      return; // No next composition to advance to
+    }
+
+    this.autoAdvanceDuration = composition.autoAdvanceMs;
+    this.autoAdvanceStartTime = Date.now();
+
+    // Update interval (every 100ms for smooth countdown)
+    this.autoAdvanceInterval = setInterval(() => {
+      const remaining = Math.max(0, this.autoAdvanceDuration - (Date.now() - this.autoAdvanceStartTime));
+      this.autoAdvanceListeners.forEach(l => l(remaining, this.autoAdvanceDuration, composition.id));
+    }, 100);
+
+    // Auto-switch timer
+    this.autoAdvanceTimer = setTimeout(() => {
+      this.clearAutoAdvanceTimer();
+      if (nextId) {
+        this.switchToComposition(nextId);
+      }
+    }, composition.autoAdvanceMs);
+  }
+
+  private clearAutoAdvanceTimer(): void {
+    if (this.autoAdvanceTimer) {
+      clearTimeout(this.autoAdvanceTimer);
+      this.autoAdvanceTimer = null;
+    }
+    if (this.autoAdvanceInterval) {
+      clearInterval(this.autoAdvanceInterval);
+      this.autoAdvanceInterval = null;
+    }
+    this.autoAdvanceDuration = 0;
+    this.autoAdvanceStartTime = 0;
+    // Notify listeners that auto-advance is cleared
+    this.autoAdvanceListeners.forEach(l => l(0, 0, ''));
+  }
+
+  cancelAutoAdvance(): void {
+    this.clearAutoAdvanceTimer();
+  }
+
+  getAutoAdvanceRemaining(): { remaining: number; total: number; compositionId: string } | null {
+    if (!this.autoAdvanceTimer || !this.state.activeCompositionId) {
+      return null;
+    }
+    const remaining = Math.max(0, this.autoAdvanceDuration - (Date.now() - this.autoAdvanceStartTime));
+    return {
+      remaining,
+      total: this.autoAdvanceDuration,
+      compositionId: this.state.activeCompositionId,
+    };
+  }
+
+  subscribeToAutoAdvance(listener: AutoAdvanceListener): () => void {
+    this.autoAdvanceListeners.add(listener);
+    return () => this.autoAdvanceListeners.delete(listener);
   }
 
   // =========================================================================

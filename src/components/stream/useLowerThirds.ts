@@ -1,29 +1,46 @@
-import { useEffect, useRef, useState } from "react";
-import { LowerThirdEngine } from "./lower-thirds/LowerThirdEngine";
+import { useEffect, useState } from "react";
+import { getLowerThirdEngine, LowerThirdEngine } from "./lower-thirds/LowerThirdEngine";
 import { LowerThirdPayload } from "./lower-thirds/types";
+import { LOWER_THIRD_PRESETS } from "./lower-thirds/presets";
 
 export function useLowerThirds() {
-  const engineRef = useRef(new LowerThirdEngine());
   const [payload, setPayload] = useState<LowerThirdPayload | null>(null);
-  const [animStart, setAnimStart] = useState<number>(0);
+  const [isExiting, setIsExiting] = useState(false);
+  const [engine] = useState<LowerThirdEngine>(() => getLowerThirdEngine());
 
   useEffect(() => {
-    return engineRef.current.subscribe((newPayload) => {
+    return engine.subscribe((newPayload, exiting) => {
       setPayload(newPayload);
-      setAnimStart(performance.now());
+      setIsExiting(exiting);
     });
-  }, []);
+  }, [engine]);
 
-  // Calculate animation progress
-  const getProgress = () => {
-    if (!payload || !animStart) return 1;
-    const elapsed = performance.now() - animStart;
-    return Math.min(elapsed / 300, 1);
-  };
+  // Register hotkey handlers for F1-F8
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toUpperCase();
+      if (LOWER_THIRD_PRESETS[key]) {
+        e.preventDefault();
+        engine.show(LOWER_THIRD_PRESETS[key]);
+      }
+      // Escape to hide
+      if (e.key === 'Escape' && engine.isShowing()) {
+        e.preventDefault();
+        engine.hide();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [engine]);
 
   return {
-    engine: engineRef.current,
+    engine,
     payload,
-    getProgress,
+    isExiting,
+    isShowing: engine.isShowing(),
+    show: (payload: LowerThirdPayload) => engine.show(payload),
+    hide: () => engine.hide(),
+    hideInstant: () => engine.hideInstant(),
   };
 }
