@@ -102,7 +102,7 @@ export default function TrendingVideos() {
         created_at,
         media_url,
         thumbnail_url,
-        channel:channels!inner(id, name, thumbnail_url)
+        channel:channels(id, name, thumbnail_url)
       `)
       .eq('status', 'ready')
       .order('views', { ascending: false })

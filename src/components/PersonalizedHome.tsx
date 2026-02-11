@@ -66,74 +66,107 @@ export default function PersonalizedHome() {
       }
       setUser(authUser);
 
-      // Get profile
-      const { data: profileData } = await supabase
+      // Get profile with null-safe handling
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
-        .single();
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError);
+      }
+
+      const hasProfile = !!profileData;
+      const hasChannel = !!profileData?.channel_id;
       setProfile(profileData);
 
-      // Get user's channel
-      const { data: channelData } = await supabase
-        .from('channels')
-        .select('*')
-        .eq('creator_id', authUser.id)
-        .single();
+      // Get user's channel only if profile exists and has channel_id
+      let channelData = null;
+      if (hasChannel && profileData?.channel_id) {
+        const { data: ch, error: chError } = await supabase
+          .from('channels')
+          .select('*')
+          .eq('id', profileData.channel_id)
+          .maybeSingle();
+
+        if (chError) {
+          console.error('Channel fetch error:', chError);
+        }
+        channelData = ch;
+      }
       setChannel(channelData);
 
       // Get live streams
-      const { data: streams } = await supabase
+      const { data: streams, error: streamsError } = await supabase
         .from('streams')
         .select(`
           id, title, status, viewer_count, thumbnail_url,
-          channel:channels!inner(id, name, thumbnail_url)
+          channel:channels(id, name, thumbnail_url)
         `)
         .eq('status', 'live')
         .order('viewer_count', { ascending: false })
         .limit(4);
 
-      if (streams) {
+      if (streamsError) {
+        console.error('Streams fetch error:', streamsError);
+      }
+
+      if (streams && Array.isArray(streams)) {
         setLiveStreams(streams.map((s: any) => ({
           ...s,
-          channel: Array.isArray(s.channel) ? s.channel[0] : s.channel
+          channel: Array.isArray(s.channel) ? s.channel[0] : s.channel ?? null
         })));
+      } else {
+        setLiveStreams([]);
       }
 
       // Get recent videos
-      const { data: recent } = await supabase
+      const { data: recent, error: recentError } = await supabase
         .from('media')
         .select(`
           id, title, type, views, duration, created_at, media_url, thumbnail_url,
-          channel:channels!inner(id, name, thumbnail_url)
+          channel:channels(id, name, thumbnail_url)
         `)
         .eq('status', 'ready')
         .order('created_at', { ascending: false })
         .limit(8);
 
-      if (recent) {
+      if (recentError) {
+        console.error('Recent videos fetch error:', recentError);
+      }
+
+      if (recent && Array.isArray(recent)) {
         setRecentVideos(recent.map((v: any) => ({
           ...v,
-          channel: Array.isArray(v.channel) ? v.channel[0] : v.channel
+          channel: Array.isArray(v.channel) ? v.channel[0] : v.channel ?? null
         })));
+      } else {
+        setRecentVideos([]);
       }
 
       // Get trending videos
-      const { data: trending } = await supabase
+      const { data: trending, error: trendingError } = await supabase
         .from('media')
         .select(`
           id, title, type, views, duration, created_at, media_url, thumbnail_url,
-          channel:channels!inner(id, name, thumbnail_url)
+          channel:channels(id, name, thumbnail_url)
         `)
         .eq('status', 'ready')
         .order('views', { ascending: false })
         .limit(8);
 
-      if (trending) {
+      if (trendingError) {
+        console.error('Trending videos fetch error:', trendingError);
+      }
+
+      if (trending && Array.isArray(trending)) {
         setTrendingVideos(trending.map((v: any) => ({
           ...v,
-          channel: Array.isArray(v.channel) ? v.channel[0] : v.channel
+          channel: Array.isArray(v.channel) ? v.channel[0] : v.channel ?? null
         })));
+      } else {
+        setTrendingVideos([]);
       }
 
       setLoading(false);

@@ -198,7 +198,7 @@ export default async function WatchPage() {
       thumbnail_url,
       viewer_count,
       started_at,
-      channels!inner (
+      channels (
         id,
         name,
         handle,
@@ -235,7 +235,7 @@ export default async function WatchPage() {
           duration,
           views,
           published_at,
-          channels!inner (id, name, handle, thumbnail_url)
+          channels (id, name, handle, thumbnail_url)
         )
       `)
       .eq('user_id', user.id)
@@ -265,7 +265,7 @@ export default async function WatchPage() {
           duration,
           views,
           published_at,
-          channels!inner (id, name, handle, thumbnail_url)
+          channels (id, name, handle, thumbnail_url)
         )
       `)
       .eq('user_id', user.id)
@@ -296,7 +296,7 @@ export default async function WatchPage() {
           duration,
           views,
           published_at,
-          channels!inner (id, name, handle, thumbnail_url)
+          channels (id, name, handle, thumbnail_url)
         )
       `)
       .eq('user_id', user.id)
@@ -323,7 +323,7 @@ export default async function WatchPage() {
       duration,
       views,
       published_at,
-      channels!inner (
+      channels (
         id,
         name,
         handle,
@@ -351,7 +351,7 @@ export default async function WatchPage() {
       duration,
       views,
       published_at,
-      channels!inner (
+      channels (
         id,
         name,
         handle,

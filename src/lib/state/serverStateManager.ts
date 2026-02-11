@@ -81,11 +81,15 @@ export async function createStream(
   
   // Check if user is suspended
   const supabase = getSupabaseAdmin();
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('is_suspended, suspended_until')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
+
+  if (profileError) {
+    console.error('Profile fetch error:', profileError);
+  }
     
   if (profile?.is_suspended) {
     const until = profile.suspended_until 
