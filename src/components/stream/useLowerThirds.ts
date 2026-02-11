@@ -7,11 +7,15 @@ export function useLowerThirds() {
   const [payload, setPayload] = useState<LowerThirdPayload | null>(null);
   const [isExiting, setIsExiting] = useState(false);
   const [engine] = useState<LowerThirdEngine>(() => getLowerThirdEngine());
+  const [animStart, setAnimStart] = useState<number>(0);
 
   useEffect(() => {
     return engine.subscribe((newPayload, exiting) => {
       setPayload(newPayload);
       setIsExiting(exiting);
+      if (newPayload) {
+        setAnimStart(performance.now());
+      }
     });
   }, [engine]);
 
@@ -34,6 +38,14 @@ export function useLowerThirds() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [engine]);
 
+  // Calculate animation progress
+  const getProgress = () => {
+    if (!payload || !animStart) return 1;
+    const elapsed = performance.now() - animStart;
+    const duration = payload.animationDuration || 300;
+    return Math.min(elapsed / duration, 1);
+  };
+
   return {
     engine,
     payload,
@@ -42,5 +54,6 @@ export function useLowerThirds() {
     show: (payload: LowerThirdPayload) => engine.show(payload),
     hide: () => engine.hide(),
     hideInstant: () => engine.hideInstant(),
+    getProgress,
   };
 }
