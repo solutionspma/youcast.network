@@ -8,7 +8,8 @@ export function useCompositor(
   videoRef: React.RefObject<HTMLVideoElement>,
   overlayLayers: OverlayLayer[],
   lowerThirdPayload: LowerThirdPayload | null,
-  getLowerThirdProgress: () => number
+  getLowerThirdProgress: () => number,
+  isLowerThirdExiting: boolean = false
 ) {
   const rafRef = useRef<number>();
 
@@ -33,6 +34,7 @@ export function useCompositor(
         ? {
             payload: lowerThirdPayload,
             progress: getLowerThirdProgress(),
+            isExiting: isLowerThirdExiting,
           }
         : undefined;
 
@@ -55,5 +57,5 @@ export function useCompositor(
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [canvasRef, videoRef, overlayLayers, lowerThirdPayload, getLowerThirdProgress]);
+  }, [canvasRef, videoRef, overlayLayers, lowerThirdPayload, getLowerThirdProgress, isLowerThirdExiting]);
 }

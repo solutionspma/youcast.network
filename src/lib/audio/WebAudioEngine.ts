@@ -125,7 +125,9 @@ export class WebAudioEngine {
     // Connect master chain
     this.masterCompressor.connect(this.masterGain);
     this.masterGain.connect(this.masterAnalyser);
-    this.masterAnalyser.connect(this.destination);
+    // Route to BOTH speaker output AND recording stream
+    this.masterAnalyser.connect(this.destination);          // For recording/streaming
+    this.masterAnalyser.connect(this.ctx.destination);      // For speaker output
     
     // Start metering
     this.startMetering();

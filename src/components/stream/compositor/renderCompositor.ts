@@ -9,7 +9,7 @@ export function renderCompositor(
   video: HTMLVideoElement | null,
   layers: OverlayLayer[],
   canvas: HTMLCanvasElement,
-  lowerThirdData?: { payload: any; progress: number }
+  lowerThirdData?: { payload: any; progress: number; isExiting?: boolean }
 ) {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -44,7 +44,13 @@ export function renderCompositor(
         break;
       case "lower-third":
         if (lowerThirdData) {
-          renderLowerThird(ctx, lowerThirdData.payload, lowerThirdData.progress, canvas);
+          renderLowerThird(
+            ctx,
+            lowerThirdData.payload,
+            lowerThirdData.progress,
+            canvas,
+            lowerThirdData.isExiting
+          );
         }
         break;
     }

@@ -83,7 +83,8 @@ export default function StreamStudioPage() {
     videoRef,
     overlays.layers,
     lowerThirds.payload,
-    lowerThirds.getProgress
+    lowerThirds.getProgress,
+    lowerThirds.isExiting
   );
   
   // Keyboard shortcuts
