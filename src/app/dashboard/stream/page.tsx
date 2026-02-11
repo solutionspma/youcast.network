@@ -1003,7 +1003,7 @@ export default function StreamStudioPage() {
             </button>
             <ThumbnailStudio 
               className="h-full"
-              streamId={stream.streamId}
+              streamId={stream?.streamId ?? undefined}
               channelId={channelId}
             />
           </div>
