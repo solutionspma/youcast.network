@@ -270,10 +270,10 @@ export default function ProStreamStudioPage() {
     const fetchChannelId = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('channel_id')
-          .eq('id', user.id)
+        const { data: channel, error } = await supabase
+          .from('channels')
+          .select('id')
+          .eq('owner_id', user.id)
           .maybeSingle();
         
         if (error) {
@@ -281,8 +281,8 @@ export default function ProStreamStudioPage() {
           return;
         }
         
-        if (profile?.channel_id) {
-          setChannelId(profile.channel_id);
+        if (channel?.id) {
+          setChannelId(channel.id);
         } else {
           console.warn('User has no channel created. Please create a channel in account settings.');
         }

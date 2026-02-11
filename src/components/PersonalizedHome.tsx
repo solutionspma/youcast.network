@@ -78,16 +78,15 @@ export default function PersonalizedHome() {
       }
 
       const hasProfile = !!profileData;
-      const hasChannel = !!profileData?.channel_id;
       setProfile(profileData);
 
-      // Get user's channel only if profile exists and has channel_id
+      // Get user's channel from channels table
       let channelData = null;
-      if (hasChannel && profileData?.channel_id) {
+      if (hasProfile) {
         const { data: ch, error: chError } = await supabase
           .from('channels')
           .select('*')
-          .eq('id', profileData.channel_id)
+          .eq('owner_id', authUser.id)
           .maybeSingle();
 
         if (chError) {
