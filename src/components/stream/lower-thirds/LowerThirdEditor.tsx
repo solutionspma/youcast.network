@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { LowerThirdEngine } from "./LowerThirdEngine";
-import { LowerThirdPosition, LowerThirdAnimation } from "./types";
+import { LowerThirdPosition, LowerThirdAnimation, LowerThirdStyle, DEFAULT_COLORS, DEFAULT_FONT } from "./types";
 
 export function LowerThirdEditor({ engine }: { engine: LowerThirdEngine }) {
   const [name, setName] = useState("");
@@ -10,6 +10,7 @@ export function LowerThirdEditor({ engine }: { engine: LowerThirdEngine }) {
   const [position, setPosition] = useState<LowerThirdPosition>("bottom-left");
   const [animation, setAnimation] = useState<LowerThirdAnimation>("slide");
   const [duration, setDuration] = useState<number>(5000);
+  const [style, setStyle] = useState<LowerThirdStyle>("news");
 
   return (
     <div className="space-y-4 p-4 bg-surface-800 rounded-lg border border-surface-700">
@@ -102,6 +103,9 @@ export function LowerThirdEditor({ engine }: { engine: LowerThirdEngine }) {
               position,
               animation,
               duration,
+              style,
+              colors: DEFAULT_COLORS,
+              font: DEFAULT_FONT,
             });
           }}
           disabled={!name}
