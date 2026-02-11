@@ -180,45 +180,33 @@ export default function StreamStudioPage() {
     console.log('🔥 AUDIO CHANNELS:', audioEngine.channels.size);
   }, [stream.status, audioEngine.isInitialized]);
   
-  // Get channel ID from user (create if doesn't exist)
+  // Get channel ID from profile (no auto-creation)
   useEffect(() => {
-    const fetchOrCreateChannel = async () => {
+    const fetchChannelId = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        // Try to get existing channel
-        const { data: channels } = await supabase
-          .from('channels')
-          .select('id')
-          .eq('creator_id', user.id)
-          .limit(1);
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('channel_id')
+          .eq('id', user.id)
+          .maybeSingle();
         
-        if (channels && channels.length > 0) {
-          setChannelId(channels[0].id);
+        if (error) {
+          console.error('Failed to fetch channel:', error);
+          return;
+        }
+        
+        if (profile?.channel_id) {
+          setChannelId(profile.channel_id);
         } else {
-          // Create new channel
-          const { data: newChannel } = await supabase
-            .from('channels')
-            .insert({
-              creator_id: user.id,
-              name: `${user.email?.split('@')[0] || 'User'}'s Channel`,
-              handle: `${user.id.substring(0, 8)}-channel`,
-              description: 'My streaming channel'
-            })
-            .select('id')
-            .single();
-          
-          if (newChannel) {
-            setChannelId(newChannel.id);
-          }
+          console.warn('User has no channel. Please create one in account settings.');
         }
       }
     };
     
-    fetchOrCreateChannel();
-    
-    // Enumerate devices on mount
+    fetchChannelId();
     stream.enumerateDevices();
   }, []);
   

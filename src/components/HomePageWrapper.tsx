@@ -138,14 +138,7 @@ function Hero() {
                   </div>
                 </div>
                 <div className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-sm font-bold">E</div>
-                    <div>
-                      <div className="text-sm font-medium text-white">Elevation Studios</div>
-                      <div className="text-xs text-surface-500">Church Media • 125K subs</div>
-                    </div>
-                  </div>
-                  <div className="text-sm text-surface-400">Sunday Morning Worship — Live from Charlotte, NC</div>
+                  <div className="text-center text-surface-500 text-sm">Loading broadcast...</div>
                 </div>
               </div>
 
@@ -300,7 +293,6 @@ function BentoFeatures() {
 // ─── Featured Creators ───────────────────────────────────────────────
 function FeaturedCreators() {
   const creators = [
-    { name: 'Elevation Studios', type: 'Church Media', subs: '125K', avatar: 'E', color: 'bg-brand-600' },
     { name: 'The Daily Brief', type: 'News Network', subs: '89K', avatar: 'D', color: 'bg-cyan-600' },
     { name: 'CodeWithSarah', type: 'Tech Education', subs: '67K', avatar: 'C', color: 'bg-purple-600' },
     { name: 'Indie Music Weekly', type: 'Music', subs: '45K', avatar: 'I', color: 'bg-pink-600' },

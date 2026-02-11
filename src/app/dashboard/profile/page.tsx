@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,11 +9,66 @@ import Badge from '@/components/ui/Badge';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ProfilePage() {
-  const [displayName, setDisplayName] = useState('Elevation Studios');
-  const [bio, setBio] = useState('Live worship broadcasts and faith-based content reaching communities worldwide.');
-  const [channelSlug, setChannelSlug] = useState('elevation-studios');
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
+  const [channelSlug, setChannelSlug] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  // Load profile data on mount
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        const { data: prof, error } = await supabase
+          .from('profiles')
+          .select('*, channel:channels(*)')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Failed to load profile:', error);
+          setLoading(false);
+          return;
+        }
+
+        setProfile(prof);
+        if (prof?.channel) {
+          setDisplayName(prof.channel.name || '');
+          setBio(prof.channel.description || '');
+          setChannelSlug(prof.channel.handle || '');
+        }
+      } catch (err) {
+        console.error('Profile loading error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  // Hard render guard
+  if (loading) {
+    return <div className="text-center text-surface-400 py-8">Loading profile...</div>;
+  }
+
+  if (!profile) {
+    return <div className="text-center text-red-500 py-8">Failed to load profile. Please try again.</div>;
+  }
+
+  if (!profile?.channel_id) {
+    return <div className="text-center text-surface-400 py-8">No channel found. Please create a channel before proceeding.</div>;
+  }
 
   const handleBannerClick = () => {
     bannerInputRef.current?.click();
