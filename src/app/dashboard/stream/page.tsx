@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useStream } from '@/hooks/useStream';
+import { useAudioEngine } from '@/hooks/useAudioEngine';
 import { createClient } from '@/lib/supabase/client';
 import StreamChat from '@/components/stream/StreamChat';
 import Badge from '@/components/ui/Badge';
@@ -72,10 +73,87 @@ export default function StreamStudioPage() {
   // Initialize Stream Hook with REAL device connections
   const stream = useStream(channelId);
   const supabase = createClient();
+  const audioEngine = useAudioEngine();
   
   // Graphics Systems
   const lowerThirds = useLowerThirds();
   const overlays = useOverlays();
+  
+  // Enable default overlays on mount
+  useEffect(() => {
+    // Add default logo overlay for visibility
+    overlays.engine.setLayer({
+      id: 'default-watermark',
+      type: 'logo',
+      zIndex: 50,
+      enabled: true,
+      data: { x: 20, y: 20, scale: 0.1, opacity: 0.6 }
+    });
+  }, [overlays.engine]);
+  
+  // Initialize audio engine on mount
+  useEffect(() => {
+    const initAudio = async () => {
+      try {
+        await audioEngine.initAudio();
+        console.log('✅ Audio engine initialized');
+      } catch (error) {
+        console.warn('⚠️ Audio engine initialization:', error);
+      }
+    };
+    initAudio();
+  }, [audioEngine]);
+  
+  // Wire microphone audio to audio engine
+  useEffect(() => {
+    if (stream.audioStream && audioEngine.isInitialized) {
+      const addAudioChannel = async () => {
+        try {
+          if (!audioEngine.channels.has('microphone') && stream.audioStream) {
+            await audioEngine.addChannel(
+              {
+                id: 'microphone',
+                name: 'Microphone',
+                type: 'microphone'
+              },
+              stream.audioStream || undefined
+            );
+            console.log('✅ Microphone connected to audio engine');
+          }
+        } catch (error) {
+          console.warn('Failed to add microphone channel:', error);
+        }
+      };
+      addAudioChannel();
+    }
+  }, [stream.audioStream, audioEngine.isInitialized, audioEngine.channels, audioEngine]);
+  
+  // Wire screen audio to audio engine if available
+  useEffect(() => {
+    if (stream.screenStream && audioEngine.isInitialized) {
+      const screenAudioTracks = stream.screenStream.getAudioTracks();
+      if (screenAudioTracks.length > 0) {
+        const addScreenAudio = async () => {
+          try {
+            if (!audioEngine.channels.has('screen-audio') && stream.screenStream) {
+              await audioEngine.addChannel(
+                {
+                  id: 'screen-audio',
+                  name: 'Screen Audio',
+                  type: 'desktop'
+                },
+                stream.screenStream || undefined
+              );
+              console.log('✅ Screen audio connected to audio engine');
+            }
+          } catch (error) {
+            console.warn('Failed to add screen audio channel:', error);
+          }
+        };
+        addScreenAudio();
+      }
+    }
+  }, [stream.screenStream, audioEngine.isInitialized, audioEngine.channels, audioEngine]);
   
   // Unified Compositor (renders everything)
   useCompositor(
@@ -96,7 +174,9 @@ export default function StreamStudioPage() {
     console.log('🔥 STREAM STUDIO MODE:', STREAM_STUDIO_MODE);
     console.log('🔥 USING REAL DATA:', IS_PRODUCTION_DATA);
     console.log('🔥 STREAM STATE (LOCAL):', stream.status);
-  }, [stream.status]);
+    console.log('🔥 AUDIO READY:', audioEngine.isInitialized);
+    console.log('🔥 AUDIO CHANNELS:', audioEngine.channels.size);
+  }, [stream.status, audioEngine.isInitialized]);
   
   // Get channel ID from user (create if doesn't exist)
   useEffect(() => {
@@ -403,7 +483,14 @@ export default function StreamStudioPage() {
                       <label className="block text-xs font-medium text-white mb-2">Camera</label>
                       <select
                         value={stream.selectedCamera}
-                        onChange={(e) => handleDeviceChange('camera', e.target.value)}
+                        onChange={(e) => {
+                          handleDeviceChange('camera', e.target.value);
+                          if (e.target.value) {
+                            setTimeout(() => {
+                              stream.startCamera(e.target.value, cameraResolution, cameraFrameRate);
+                            }, 100);
+                          }
+                        }}
                         className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-sm text-white"
                       >
                         <option value="">Select Camera</option>
@@ -455,7 +542,12 @@ export default function StreamStudioPage() {
                   <label className="block text-xs font-medium text-white mb-2">Microphone</label>
                   <select
                     value={stream.selectedMicrophone}
-                    onChange={(e) => handleDeviceChange('microphone', e.target.value)}
+                    onChange={(e) => {
+                      handleDeviceChange('microphone', e.target.value);
+                      if (e.target.value && !audioEngine.isInitialized) {
+                        audioEngine.initAudio().catch(() => {});
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-surface-800 border border-surface-700 rounded-lg text-sm text-white"
                   >
                     <option value="">Select Microphone</option>
@@ -469,6 +561,12 @@ export default function StreamStudioPage() {
                       Microphone Active
                     </div>
                   )}
+                  {audioEngine.isInitialized && audioEngine.channels.has('microphone') && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-blue-500">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                      Audio Engine Connected
+                    </div>
+                  )}
                 </div>
                 
                 {/* Screen Share Button */}
@@ -476,8 +574,10 @@ export default function StreamStudioPage() {
                   <label className="block text-xs font-medium text-white mb-2">Screen Share</label>
                   {!stream.screenStream ? (
                     <button
-                      onClick={stream.startScreenShare}
-                      className="w-full px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm transition-colors"
+                      onClick={async () => {
+                        await stream.startScreenShare();
+                      }}
+                      className="w-full px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm transition-colors font-medium"
                     >
                       Start Screen Share
                     </button>
@@ -488,8 +588,8 @@ export default function StreamStudioPage() {
                         Screen Sharing Active
                       </div>
                       <button
-                        onClick={stream.stopScreenShare}
-                        className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors"
+                        onClick={() => stream.stopScreenShare()}
+                        className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition-colors font-medium"
                       >
                         Stop Screen Share
                       </button>
@@ -561,38 +661,54 @@ export default function StreamStudioPage() {
                 
                 {/* Quick Controls */}
                 <div className="grid grid-cols-2 gap-2">
-                  <button className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-center">
+                  <button 
+                    onClick={() => audioEngine.muteAll()}
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-center transition-colors"
+                  >
                     <span className="block text-lg">🔇</span>
                     <span className="text-[9px] text-zinc-400">Mute All</span>
                   </button>
-                  <button className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-center">
-                    <span className="block text-lg">🎧</span>
-                    <span className="text-[9px] text-zinc-400">Monitor</span>
+                  <button 
+                    onClick={() => audioEngine.unmuteAll()}
+                    className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-center transition-colors"
+                  >
+                    <span className="block text-lg">🔊</span>
+                    <span className="text-[9px] text-zinc-400">Unmute All</span>
                   </button>
                 </div>
 
-                {/* Compact Channel List */}
+                {/* Compact Channel List - Wired to Audio Engine */}
                 <div className="space-y-2">
-                  {[
-                    { name: 'Camera', icon: '📹', level: 75, muted: false },
-                    { name: 'Microphone', icon: '🎙️', level: 85, muted: false },
-                    { name: 'Screen', icon: '🖥️', level: 50, muted: true },
-                    { name: 'Media', icon: '🎵', level: 60, muted: false },
-                  ].map((ch, i) => (
-                    <div key={i} className={`flex items-center gap-2 p-2 rounded-lg ${ch.muted ? 'bg-red-900/20 border border-red-500/30' : 'bg-zinc-800/50'}`}>
-                      <span className="text-sm">{ch.icon}</span>
-                      <span className="text-xs text-white flex-1">{ch.name}</span>
-                      <div className="w-16 h-2 bg-zinc-900 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${ch.muted ? 'bg-red-500/50' : 'bg-green-500'}`}
-                          style={{ width: `${ch.level}%` }}
-                        />
+                  {Array.from(audioEngine.channels.values()).map((ch) => {
+                    const meter = audioEngine.meters.get(ch.id);
+                    return (
+                      <div key={ch.id} className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${ch.muted ? 'bg-red-900/20 border border-red-500/30' : 'bg-zinc-800/50'}`}>
+                        <span className="text-sm">
+                          {ch.type === 'microphone' ? '🎙️' : ch.type === 'desktop' ? '🖥️' : '🎵'}
+                        </span>
+                        <span className="text-xs text-white flex-1">{ch.name}</span>
+                        <div className="w-16 h-2 bg-zinc-900 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all ${ch.muted ? 'bg-red-500/50' : 'bg-green-500'}`}
+                            style={{ width: `${Math.min(100, (meter?.rms || 0) * 100)}%` }}
+                          />
+                        </div>
+                        <button 
+                          onClick={() => audioEngine.setMuted(ch.id, !ch.muted)}
+                          className={`w-6 h-6 rounded text-[10px] font-bold transition-colors ${
+                            ch.muted ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-400 hover:bg-zinc-600'
+                          }`}
+                        >
+                          M
+                        </button>
                       </div>
-                      <button className={`w-6 h-6 rounded text-[10px] font-bold ${ch.muted ? 'bg-red-600 text-white' : 'bg-zinc-700 text-zinc-400'}`}>
-                        M
-                      </button>
+                    );
+                  })}
+                  {audioEngine.channels.size === 0 && (
+                    <div className="text-xs text-zinc-500 text-center py-4">
+                      No audio channels. Select microphone to start.
                     </div>
-                  ))}
+                  )}
                 </div>
 
                 {/* Full Mixer Link */}
@@ -602,7 +718,7 @@ export default function StreamStudioPage() {
                   </p>
                   <button 
                     onClick={() => setShowFullMixer(true)}
-                    className="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-medium rounded-lg"
+                    className="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-medium rounded-lg transition-all"
                   >
                     🎛️ Open Full Mixer
                   </button>
@@ -767,20 +883,36 @@ export default function StreamStudioPage() {
                   className="hidden"
                 />
                 
-                {/* Main canvas output */}
+                {/* Main canvas output - RENDERS CAMERA + OVERLAYS TOGETHER */}
                 <canvas
                   ref={canvasRef}
-                  className="w-full h-full"
+                  className="w-full h-full block bg-black"
                   width={1920}
                   height={1080}
                 />
                 
                 {stream.status === 'offline' && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-surface-900/50">
-                    <div className="text-center">
-                      <div className="text-4xl mb-2">📹</div>
-                      <p className="text-white font-medium">Stream Offline</p>
-                      <p className="text-sm text-surface-400 mt-1">Click &quot;Start Preview&quot; to begin</p>
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                    <div className="text-center space-y-4">
+                      <div className="text-6xl animate-pulse">📹</div>
+                      <div>
+                        <p className="text-white font-bold text-xl">Stream Offline</p>
+                        <p className="text-gray-300 text-sm mt-1">Select devices to begin streaming</p>
+                      </div>
+                      {stream.selectedCamera && stream.selectedMicrophone && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await stream.startPreview();
+                            } catch (error) {
+                              console.error('Preview failed:', error);
+                            }
+                          }}
+                          className="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-lg font-bold transition-all hover:scale-105"
+                        >
+                          Start Preview
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -823,7 +955,13 @@ export default function StreamStudioPage() {
             <div className="flex items-center justify-center gap-2">
               {stream.status === 'offline' && (
                 <button
-                  onClick={stream.startPreview}
+                  onClick={async () => {
+                    try {
+                      await stream.startPreview();
+                    } catch (error) {
+                      console.error('Failed to start preview:', error);
+                    }
+                  }}
                   className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors"
                 >
                   Start Preview
@@ -833,13 +971,19 @@ export default function StreamStudioPage() {
               {stream.status === 'preview' && (
                 <>
                   <button
-                    onClick={stream.stopPreview}
+                    onClick={() => stream.stopPreview()}
                     className="px-6 py-2.5 bg-surface-700 hover:bg-surface-600 text-white rounded-lg font-medium transition-colors"
                   >
                     Stop Preview
                   </button>
                   <button
-                    onClick={stream.goLive}
+                    onClick={async () => {
+                      try {
+                        await stream.goLive();
+                      } catch (error) {
+                        console.error('Failed to go live:', error);
+                      }
+                    }}
                     className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors flex items-center gap-2"
                   >
                     <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
@@ -850,7 +994,13 @@ export default function StreamStudioPage() {
               
               {stream.status === 'live' && (
                 <button
-                  onClick={stream.stopStream}
+                  onClick={async () => {
+                    try {
+                      await stream.stopStream();
+                    } catch (error) {
+                      console.error('Failed to stop stream:', error);
+                    }
+                  }}
                   className="px-8 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors"
                 >
                   End Stream
