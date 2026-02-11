@@ -26,6 +26,7 @@ export async function startPreview(
   }
 
   // 3. Safe constraints (Logitech C922 compatible)
+  // CRITICAL: Always request BOTH video and audio for WebRTC transmission
   const constraints: MediaStreamConstraints = {
     video: {
       deviceId: opts?.cameraId ? { exact: opts.cameraId } : undefined,
@@ -33,15 +34,36 @@ export async function startPreview(
       height: { ideal: 720 },
       frameRate: { ideal: 30 },
     },
-    audio: opts?.micId
-      ? { deviceId: { exact: opts.micId } }
-      : true,
+    audio: {
+      deviceId: opts?.micId ? { exact: opts.micId } : undefined,
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
   };
 
-  // 4. Request media
+  // 4. Request media (BOTH video and audio)
   const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-  // 5. Create / attach video element
+  // 5. Validate and log audio/video tracks for WebRTC transmission
+  const videoTracks = stream.getVideoTracks();
+  const audioTracks = stream.getAudioTracks();
+  console.log(`📹 Video tracks captured: ${videoTracks.length}`);
+  console.log(`🎤 Audio tracks captured: ${audioTracks.length}`);
+
+  if (videoTracks.length === 0) {
+    stream.getTracks().forEach((t) => t.stop());
+    throw new Error("No video tracks captured - camera may be unavailable");
+  }
+
+  if (audioTracks.length === 0) {
+    stream.getTracks().forEach((t) => t.stop());
+    throw new Error("No audio tracks captured - microphone may be unavailable");
+  }
+
+  console.log(`✅ Stream contains ${videoTracks.length} video track(s) and ${audioTracks.length} audio track(s)`);
+
+  // 6. Create / attach video element
   const video =
     opts?.videoEl ?? document.createElement("video");
 
@@ -53,10 +75,10 @@ export async function startPreview(
   video.style.height = "100%";
   video.style.background = "black";
 
-  // 6. Explicitly start playback (CRITICAL)
+  // 7. Explicitly start playback (CRITICAL)
   await video.play();
 
-  // 7. Wait until real frames exist
+  // 8. Wait until real frames exist
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(
       () => reject(new Error("Camera timeout")),
@@ -77,11 +99,43 @@ export async function startPreview(
     check();
   });
 
-  // 8. Final validation (frames must exist)
+  // 9. Final validation (frames must exist)
   if (video.videoWidth === 0 || video.videoHeight === 0) {
     stream.getTracks().forEach((t) => t.stop());
     throw new Error("Camera produced no frames");
   }
+
+  // 10. Initialize WebRTC peer connection and add ALL tracks (video + audio)
+  // This ensures both streams are ready for transmission over WebRTC
+  const peerConnection = new RTCPeerConnection({
+    iceServers: [
+      { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }
+    ]
+  });
+
+  console.log('🔌 RTCPeerConnection created');
+
+  // Add ALL tracks (video + audio) to peer connection for WebRTC transmission
+  stream.getTracks().forEach(track => {
+    console.log(`➕ Adding ${track.kind} track to peer connection:`, track.label);
+    peerConnection.addTrack(track, stream);
+  });
+
+  // 11. Confirm audio sender exists
+  const senders = peerConnection.getSenders();
+  const videoSenders = senders.filter(s => s.track?.kind === 'video');
+  const audioSenders = senders.filter(s => s.track?.kind === 'audio');
+
+  console.log(`📊 Peer connection senders - Video: ${videoSenders.length}, Audio: ${audioSenders.length}`);
+
+  if (audioSenders.length === 0) {
+    console.error('❌ ERROR: No audio sender found - microphone not transmitting!');
+    stream.getTracks().forEach((t) => t.stop());
+    peerConnection.close();
+    throw new Error("Audio tracks added to peer connection but no audio sender confirmed");
+  }
+
+  console.log('✅ Audio sender confirmed - microphone ready for transmission');
 
   return {
     videoEl: video,
