@@ -217,6 +217,7 @@ function ChannelStrip({
 
 export default function ProStreamStudioPage() {
   const [channelId, setChannelId] = useState<string>('');
+  const [channelLoadError, setChannelLoadError] = useState<string>('');
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('compositions');
   const [rightPanel, setRightPanel] = useState<RightPanel>('audio');
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -278,13 +279,17 @@ export default function ProStreamStudioPage() {
         
         if (error) {
           console.error('Failed to fetch channel:', error);
+          setChannelLoadError(`Failed to load channel: ${error.message}`);
           return;
         }
         
         if (channel?.id) {
           setChannelId(channel.id);
+          setChannelLoadError('');
         } else {
-          console.warn('User has no channel created. Please create a channel in account settings.');
+          const msg = 'No channel found. Please create one in your profile settings first.';
+          console.warn(msg);
+          setChannelLoadError(msg);
         }
       }
     };
@@ -460,11 +465,19 @@ export default function ProStreamStudioPage() {
             </div>
           )}
           
+          {/* Channel Error Message */}
+          {channelLoadError && (
+            <div className="text-xs text-red-400 px-3 py-1 bg-red-500/10 rounded border border-red-500/30">
+              {channelLoadError}
+            </div>
+          )}
+          
           {/* Go Live Button */}
           {stream.status === 'offline' && (
             <button
               onClick={stream.startPreview}
-              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-semibold"
+              disabled={!!channelLoadError}
+              className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold"
             >
               Start Preview
             </button>
@@ -472,7 +485,8 @@ export default function ProStreamStudioPage() {
           {stream.status === 'preview' && (
             <button
               onClick={stream.goLive}
-              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-bold flex items-center gap-2"
+              disabled={!!channelLoadError}
+              className="px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold flex items-center gap-2"
             >
               <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
               Go Live

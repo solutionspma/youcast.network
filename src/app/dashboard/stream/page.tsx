@@ -55,6 +55,7 @@ const mockChatMessages: ChatMessage[] = IS_PRODUCTION_DATA ? [] : [
 
 export default function StreamStudioPage() {
   const [channelId, setChannelId] = useState<string>('');
+  const [channelLoadError, setChannelLoadError] = useState<string>('');
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('devices');
   const [rightPanel, setRightPanel] = useState<RightPanel>('chat');
   const [chatMessages, setChatMessages] = useState(mockChatMessages);
@@ -194,14 +195,19 @@ export default function StreamStudioPage() {
           .maybeSingle();
         
         if (error) {
-          console.error('Failed to fetch channel:', error);
+          const msg = `Failed to fetch channel: ${error.message}`;
+          console.error(msg);
+          setChannelLoadError(msg);
           return;
         }
         
         if (channel?.id) {
           setChannelId(channel.id);
+          setChannelLoadError('');
         } else {
-          console.warn('User has no channel. Please create one in account settings.');
+          const msg = 'No channel found. Please create one in your profile settings first.';
+          console.warn(msg);
+          setChannelLoadError(msg);
         }
       }
     };
@@ -980,7 +986,8 @@ export default function StreamStudioPage() {
                       console.error('Failed to start preview:', error);
                     }
                   }}
-                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium transition-colors"
+                  disabled={!!channelLoadError}
+                  className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
                 >
                   Start Preview
                 </button>
@@ -1002,7 +1009,8 @@ export default function StreamStudioPage() {
                         console.error('Failed to go live:', error);
                       }
                     }}
-                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors flex items-center gap-2"
+                    disabled={!!channelLoadError}
+                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-bold transition-colors flex items-center gap-2"
                   >
                     <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
                     Go Live
@@ -1023,6 +1031,13 @@ export default function StreamStudioPage() {
                 >
                   End Stream
                 </button>
+              )}
+              
+              {/* Channel Error Alert */}
+              {channelLoadError && (
+                <div className="text-xs text-red-400 px-3 py-2 bg-red-500/10 rounded border border-red-500/30 max-w-xs">
+                  {channelLoadError}
+                </div>
               )}
             </div>
           </div>
